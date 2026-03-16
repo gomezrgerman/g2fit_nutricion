@@ -1,0 +1,394 @@
+{
+  "name": "G2Fit - 1. Captura Formulario y Pago",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "9ead4a2a-a5f1-4209-b6f2-0107ff3d1f39",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "7ff388f3-570c-43d7-bc8e-ca7411fee140",
+      "name": "Webhook - Nueva Solicitud",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        2448
+      ],
+      "webhookId": "9ead4a2a-a5f1-4209-b6f2-0107ff3d1f39"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== MAPEO DE DATOS DESDE TALLY (claves question_*) =====\nconst webhookData = $input.first().json;\nconst tallyFields = webhookData.body?.data?.fields || [];\n\n// Helper: valor único (dropdown, single choice, text)\nconst getField = (key) => {\n  const field = tallyFields.find(f => f.key === key);\n  if (!field) return null;\n  if (field.value && Array.isArray(field.value) && field.options) {\n    const selected = field.options.find(opt => field.value.includes(opt.id));\n    return selected ? selected.text : null;\n  }\n  return field.value != null ? String(field.value) : null;\n};\n\n// Helper: valores múltiples (checkboxes, multiple choice)\nconst getFields = (key) => {\n  const field = tallyFields.find(f => f.key === key);\n  if (!field) return [];\n  if (field.value && Array.isArray(field.value) && field.options) {\n    return field.options\n      .filter(opt => field.value.includes(opt.id))\n      .map(opt => opt.text);\n  }\n  if (Array.isArray(field.value)) return field.value;\n  return field.value ? [String(field.value)] : [];\n};\n\n// ─── DATOS BÁSICOS ───────────────────────────────────────────────────────────\nconst nombre    = getField('question_KMvXRA') || '';\nconst apellidos = getField('question_7de71A') || '';\nconst email     = (getField('question_Ldv8oj') || '').toLowerCase().trim();\nconst telefono  = getField('question_pLRgZq') || '';\nconst edad      = parseInt(getField('question_1rDjBQ') || 0);\n\n// ─── SEXO ────────────────────────────────────────────────────────────────────\nconst sexoRaw = (getField('question_MAv0Gp') || '').toLowerCase().trim();\nconst sexo = sexoRaw === 'masculino' ? 'masculino' : 'femenino';\n\n// ─── MEDIDAS CORPORALES ──────────────────────────────────────────────────────\nconst peso_actual          = parseFloat(getField('question_J2XyB4') || 0);\nconst altura               = parseInt(getField('question_EPZ1kX') || 0);\nconst contorno_abdominal_1 = parseFloat(getField('question_MAy56l') || 0) || null;\nconst contorno_abdominal_2 = parseFloat(getField('question_J2Y0er') || 0) || null;\nconst contorno_abdominal_3 = parseFloat(getField('question_g5r4JP') || 0) || null;\n\n// ─── OBJETIVO ────────────────────────────────────────────────────────────────\nconst objetivoRaw = (getField('question_rlJKjl') || '').toLowerCase().trim();\nconst objetivoMap = {\n  'perder peso': 'perder_peso',\n  'ganar masa muscular': 'ganar_masa',\n  'definición': 'definicion',\n  'definicion': 'definicion',\n  'quiero comer bien': 'mantener'\n};\nconst objetivo = objetivoMap[objetivoRaw] || 'mantener';\n\n// ─── TIEMPO OBJETIVO ─────────────────────────────────────────────────────────\nconst tiempo_objetivo = getField('question_429k4k') || '';\n\n// ─── NIVEL ACTIVIDAD ─────────────────────────────────────────────────────────\nconst actividadRaw = (getField('question_jBJMax') || '').toLowerCase().trim();\nconst actividadMap = {\n  'trabajo de oficina, poco o nada de ejercicio': 'sedentario',\n  'ejercicio ligero 1-2 días por semana': 'ligero',\n  'ejercicio moderado 3-5 días por semana': 'moderado',\n  'ejercicio intenso 6-7 días por semana': 'muy_activo'\n};\nconst nivel_actividad = actividadMap[actividadRaw] || 'moderado';\n\n// ─── ALERGIAS (múltiple selección) ───────────────────────────────────────────\nconst alergias_raw = getFields('question_24lkEL');\nconst alergias = alergias_raw.filter(a => a.toLowerCase() !== 'ninguna' && a.toLowerCase() !== 'otra');\nconst alergias_texto = getField('question_xdRQXy') || '';\nif (alergias_texto.trim()) alergias.push(alergias_texto.trim());\n\n// ─── INTOLERANCIAS (múltiple selección) ──────────────────────────────────────\nconst intolerancias_raw = getFields('question_Zd1Vjz');\nconst intolerancias = intolerancias_raw.filter(a => a.toLowerCase() !== 'ninguna' && a.toLowerCase() !== 'otra');\nconst intolerancias_texto = getField('question_NAbVpB') || '';\nif (intolerancias_texto.trim() && intolerancias_texto !== 'null') {\n  intolerancias.push(intolerancias_texto.trim());\n}\n\n// ─── COMIDAS DEL DÍA ─────────────────────────────────────────────────────────\nconst comidas_seleccionadas = getFields('question_Al0MAk');\nconst comidas_diarias = comidas_seleccionadas.length || 3;\n\n// ─── PREFERENCIAS ALIMENTARIAS ───────────────────────────────────────────────\nconst dieta_anterior             = getField('question_blD1Ko') || '';\nconst alimentos_a_evitar         = getField('question_BGgJAN') || '';\nconst datos_interes              = getField('question_kYp8KM') || '';\nconst consume_alcohol            = getField('question_vNp8EQ') || '';\nconst consume_bebidas_azucaradas = getField('question_jBpNXE') || '';\nconst pica_entre_comidas         = getField('question_KMgrv7') || '';\nconst apetencias                 = getFields('question_Ldg4a1');\nconst notas_apetencias           = getField('question_QAp4r7') || '';\nconst consume_lacteos_raw        = (getField('question_pLMYJb') || '').toLowerCase();\nconst consume_lacteos            = consume_lacteos_raw === 'si' || consume_lacteos_raw === 'sí';\nconst bebidas_vegetales_raw      = getFields('question_24Z0zV');\nconst bebidas_vegetales_preferidas = bebidas_vegetales_raw.filter(v => !v.toLowerCase().includes('no me gustan'));\nconst proteinas_preferidas       = getFields('question_1rxQNW');\nconst notas_proteinas            = getField('question_MAgj6X') || '';\nconst consume_verduras           = getField('question_J2gEed') || '';\nconst carbohidratos_preferidos   = getFields('question_g5p8Jd');\nconst frutos_secos_raw           = getFields('question_ylG8o4');\nconst tipo_dieta_raw             = (getField('question_EPGzal') || 'No').trim();\nconst tipo_dieta_map             = { 'no': 'no', 'vegana': 'vegana', 'vegetariana': 'vegetariana' };\nconst tipo_dieta                 = tipo_dieta_map[tipo_dieta_raw.toLowerCase()] || 'no';\nconst frutos_secos_preferidos    = frutos_secos_raw.filter(v => !v.toLowerCase().includes('prefiero evitarlos'));\n\n// ─── VALORES FIJOS ───────────────────────────────────────────────────────────\nconst patologias          = [];\nconst medicacion          = '';\nconst presupuesto_semanal = null;\n\nreturn [{\n  json: {\n    cliente: {\n      nombre, apellidos, email, telefono, edad, sexo,\n      peso_actual, altura,\n      contorno_abdominal_1, contorno_abdominal_2, contorno_abdominal_3,\n      objetivo, tiempo_objetivo, nivel_actividad,\n      alergias, intolerancias,\n      comidas_diarias, comidas_seleccionadas,\n      dieta_anterior, alimentos_a_evitar, datos_interes,\n      consume_alcohol, consume_bebidas_azucaradas, pica_entre_comidas,\n      apetencias, notas_apetencias,\n      consume_lacteos, bebidas_vegetales_preferidas,\n      proteinas_preferidas, notas_proteinas,\n      consume_verduras, carbohidratos_preferidos, frutos_secos_preferidos,\n      patologias, medicacion, presupuesto_semanal,\n      tipo_dieta\n    },\n    metadata: {\n      id_solicitud: 'SOL-' + Date.now(),\n      timestamp: new Date().toISOString(),\n      responseId: webhookData.body?.data?.responseId,\n      formId: webhookData.body?.data?.formId\n    }\n  }\n}];\n"
+      },
+      "id": "c7289a92-6ac0-425f-849f-3dc11c668642",
+      "name": "Set - Normalizar Datos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        2448
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst c = item.cliente;\n\n// TMB Mifflin-St Jeor\nconst tmb = c.sexo === 'masculino'\n  ? (10 * c.peso_actual) + (6.25 * c.altura) - (5 * c.edad) + 5\n  : (10 * c.peso_actual) + (6.25 * c.altura) - (5 * c.edad) - 161;\n\n// TDEE\nconst factores = { sedentario:1.2, ligero:1.375, moderado:1.55, activo:1.725, muy_activo:1.9 };\nconst tdee = tmb * (factores[c.nivel_actividad] || 1.375);\n\n// Ajuste por objetivo\nconst ajustes = { perder_peso:-0.20, ganar_masa:0.15, mantener:0, definicion:-0.10 };\nconst cal_objetivo = Math.round(tdee * (1 + (ajustes[c.objetivo] || 0)));\n\n// Macros\nconst factorProt = c.objetivo === 'ganar_masa' ? 2.2 : 1.8;\nconst proteinas_g = Math.round(c.peso_actual * factorProt);\nconst grasas_g = Math.round((cal_objetivo * 0.28) / 9);\nconst carbos_g = Math.round((cal_objetivo - (proteinas_g * 4) - (grasas_g * 9)) / 4);\n\n// IMC\nconst imc = parseFloat((c.peso_actual / Math.pow(c.altura/100, 2)).toFixed(1));\nconst imc_cat = imc < 18.5 ? 'Bajo peso' : imc < 25 ? 'Normal' : imc < 30 ? 'Sobrepeso' : 'Obesidad';\n\n// Rangos ±5%\nconst rango = (v, p=0.05) => ({ min: Math.round(v*(1-p)), max: Math.round(v*(1+p)) });\n\n// Alertas\nconst alertas = [];\nif (cal_objetivo < 1200) alertas.push('ALERTA: Calorías muy bajas (<1200 kcal)');\nif (imc < 17 || imc > 40) alertas.push('ALERTA: IMC extremo - requiere supervisión médica');\nif (c.patologias && c.patologias.length > 0) alertas.push(`AVISO: Patologías declaradas: ${c.patologias.join(', ')}`);\nif (c.peso_objetivo && Math.abs(c.peso_actual - c.peso_objetivo) > 15) alertas.push('AVISO: Objetivo de peso agresivo (>15kg)');\n\n// Proyección\nconst diff_kg = Math.abs(c.peso_actual - (c.peso_objetivo || c.peso_actual));\nconst semanas_objetivo = c.objetivo === 'perder_peso' ? Math.ceil(diff_kg / 0.7) : Math.ceil(diff_kg / 0.4);\n\nreturn [{\n  json: {\n    ...item,\n    cliente: { ...c, imc, imc_categoria: imc_cat },\n    calculos: {\n      tmb: Math.round(tmb),\n      tdee: Math.round(tdee),\n      imc,\n      imc_categoria: imc_cat,\n      objetivo: { calorias: cal_objetivo, proteinas_g, carbohidratos_g: carbos_g, grasas_g },\n      rangos: {\n        calorias: rango(cal_objetivo),\n        proteinas: rango(proteinas_g),\n        carbohidratos: rango(carbos_g),\n        grasas: rango(grasas_g)\n      },\n      proyeccion: { semanas_estimadas: semanas_objetivo, fecha_objetivo: new Date(Date.now() + semanas_objetivo*7*24*3600*1000).toISOString().split('T')[0] },\n      alertas\n    }\n  }\n}];"
+      },
+      "id": "aba578da-990b-4288-ac48-b3e2fcc09cb8",
+      "name": "Function - Calcular Macros",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        2448
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://blardvkldwwbhgdmsxhd.supabase.co/rest/v1/clientes?on_conflict=email",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  nombre:                      $('Function - Calcular Macros').first().json.cliente.nombre,\n  apellidos:                   $('Function - Calcular Macros').first().json.cliente.apellidos || '',\n  email:                       $('Function - Calcular Macros').first().json.cliente.email,\n  telefono:                    $('Function - Calcular Macros').first().json.cliente.telefono || '',\n  edad:                        $('Function - Calcular Macros').first().json.cliente.edad,\n  sexo:                        $('Function - Calcular Macros').first().json.cliente.sexo,\n  peso_actual:                 $('Function - Calcular Macros').first().json.cliente.peso_actual,\n  altura:                      $('Function - Calcular Macros').first().json.cliente.altura,\n  objetivo:                    $('Function - Calcular Macros').first().json.cliente.objetivo,\n  tiempo_objetivo:             $('Function - Calcular Macros').first().json.cliente.tiempo_objetivo || '',\n  nivel_actividad:             $('Function - Calcular Macros').first().json.cliente.nivel_actividad,\n  comidas_diarias:             $('Function - Calcular Macros').first().json.cliente.comidas_diarias || 3,\n  comidas_seleccionadas:       $('Function - Calcular Macros').first().json.cliente.comidas_seleccionadas || [],\n  alergias:                    $('Function - Calcular Macros').first().json.cliente.alergias || [],\n  intolerancias:               $('Function - Calcular Macros').first().json.cliente.intolerancias || [],\n  dieta_anterior:              $('Function - Calcular Macros').first().json.cliente.dieta_anterior || '',\n  alimentos_a_evitar:          $('Function - Calcular Macros').first().json.cliente.alimentos_a_evitar || '',\n  datos_interes:               $('Function - Calcular Macros').first().json.cliente.datos_interes || '',\n  consume_alcohol:             $('Function - Calcular Macros').first().json.cliente.consume_alcohol || '',\n  consume_bebidas_azucaradas:  $('Function - Calcular Macros').first().json.cliente.consume_bebidas_azucaradas || '',\n  pica_entre_comidas:          $('Function - Calcular Macros').first().json.cliente.pica_entre_comidas || '',\n  apetencias:                  $('Function - Calcular Macros').first().json.cliente.apetencias || [],\n  consume_lacteos:             $('Function - Calcular Macros').first().json.cliente.consume_lacteos || false,\n  bebidas_vegetales_preferidas:$('Function - Calcular Macros').first().json.cliente.bebidas_vegetales_preferidas || [],\n  proteinas_preferidas:        $('Function - Calcular Macros').first().json.cliente.proteinas_preferidas || [],\n  notas_proteinas:             $('Function - Calcular Macros').first().json.cliente.notas_proteinas || '',\n  consume_verduras:            $('Function - Calcular Macros').first().json.cliente.consume_verduras || '',\n  carbohidratos_preferidos:    $('Function - Calcular Macros').first().json.cliente.carbohidratos_preferidos || [],\n  frutos_secos_preferidos:     ($('Function - Calcular Macros').first().json.cliente.frutos_secos_preferidos || []).join(', '),\n  medicacion:                  $('Function - Calcular Macros').first().json.cliente.medicacion || '',\n  patologias:                  $('Function - Calcular Macros').first().json.cliente.patologias || [],\n  contorno_abdominal_1:        $('Function - Calcular Macros').first().json.cliente.contorno_abdominal_1 || null,\n  contorno_abdominal_2:        $('Function - Calcular Macros').first().json.cliente.contorno_abdominal_2 || null,\n  contorno_abdominal_3:        $('Function - Calcular Macros').first().json.cliente.contorno_abdominal_3 || null,\n  tipo_dieta:                  $('Function - Calcular Macros').first().json.cliente.tipo_dieta || 'no',\n  imc:                         $('Function - Calcular Macros').first().json.calculos.imc,\n  tally_response_id:           $('Set - Normalizar Datos').first().json.metadata.responseId || null\n}) }}",
+        "options": {}
+      },
+      "id": "93fb6070-8dc1-48c5-89f8-0e5dba606aa7",
+      "name": "Supabase - Insertar Cliente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1760,
+        2448
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "nEeesz8yShWcFoTO",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "check-stripe-session",
+              "leftValue": "={{ $json.stripe_session_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c86317ec-96fd-4277-b3d5-da3c563ad805",
+      "name": "IF - Ya Tiene Sesion Pago",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1952,
+        2448
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\": \"received\", \"message\": \"Solicitud recibida correctamente. Generando tu plan nutricional personalizado.\"}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "734ccc4f-1cab-4d6a-a9ed-5fd52bd9349a",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2768,
+        2432
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.stripe.com/v1/checkout/sessions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "mode",
+              "value": "payment"
+            },
+            {
+              "name": "payment_method_types[0]",
+              "value": "card"
+            },
+            {
+              "name": "line_items[0][quantity]",
+              "value": "1"
+            },
+            {
+              "name": "customer_email",
+              "value": "={{ $json.email }}"
+            },
+            {
+              "name": "client_reference_id",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "metadata[cliente_id]",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "metadata[nombre]",
+              "value": "={{ $json.nombre }}"
+            },
+            {
+              "name": "success_url",
+              "value": "https://g2fit.es/gracias-pago.html"
+            },
+            {
+              "name": "cancel_url",
+              "value": "https://g2fit.es/pago-cancelado.html"
+            },
+            {
+              "name": "line_items[0][price]",
+              "value": "price_1TBdNuBPbXg9MQvY0LzTX9YM"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2c6a4c71-8cd2-4ae0-82c4-9ccb84e8becc",
+      "name": "Stripe - Crear Sesión Pago",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2176,
+        2544
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://blardvkldwwbhgdmsxhd.supabase.co/rest/v1/clientes?id=eq.{{ $json.client_reference_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ stripe_session_id: $json.id }) }}",
+        "options": {}
+      },
+      "id": "b0c28c0f-1a12-4b99-9515-399dbcc78d6a",
+      "name": "Supabase - Guardar Session Stripe",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2368,
+        2544
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "nEeesz8yShWcFoTO",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Stripe - Crear Sesión Pago').first().json.customer_email }}",
+        "subject": "={{ $('Stripe - Crear Sesión Pago').first().json.metadata.nombre }}, aquí está tu enlace de pago — G2Fit Nutrición",
+        "message": "=<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<link href=\"https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap\" rel=\"stylesheet\">\n</head>\n<body style=\"margin:0;padding:0;background:#f4f4f4;font-family:'Montserrat',Arial,sans-serif;\">\n<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#f4f4f4;padding:32px 16px;\">\n  <tr><td align=\"center\">\n    <table width=\"560\" cellpadding=\"0\" cellspacing=\"0\" style=\"max-width:560px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);\">\n\n      <!-- HEADER -->\n      <tr>\n        <td style=\"background:#0F172A;padding:28px 32px;text-align:center;\">\n          <img src=\"https://g2fit.es/wp-content/uploads/2024/06/cropped-IMG_5187-1-180x85.png\" alt=\"G2Fit\" style=\"height:60px;max-width:180px;object-fit:contain;\" />\n        </td>\n      </tr>\n\n      <!-- PINK BANNER -->\n      <tr>\n        <td style=\"background:#FB5FAB;padding:14px 32px;text-align:center;\">\n          <p style=\"margin:0;color:#ffffff;font-size:13px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;\">Plan Nutricional Personalizado</p>\n        </td>\n      </tr>\n\n      <!-- BODY -->\n      <tr>\n        <td style=\"padding:40px 40px 32px;\">\n          <h2 style=\"margin:0 0 16px;color:#0F172A;font-size:22px;font-weight:700;\">¡Hola, {{ $('Stripe - Crear Sesión Pago').first().json.metadata.nombre }}!</h2>\n          <p style=\"margin:0 0 16px;color:#454F5E;font-size:15px;line-height:1.7;\">\n            Hemos recibido tu solicitud de plan nutricional y ya tenemos todo listo para empezar.<br>\n            Solo falta un paso: <strong style=\"color:#0F172A;\">completar el pago</strong> para que nuestro sistema genere tu dieta 100% personalizada.\n          </p>\n\n          <!-- WHAT YOU GET -->\n          <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#fdf2f8;border-radius:12px;padding:0;margin:24px 0;\">\n            <tr>\n              <td style=\"padding:20px 24px;\">\n                <p style=\"margin:0 0 12px;color:#0F172A;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px;\">¿Qué incluye tu plan?</p>\n                <table cellpadding=\"0\" cellspacing=\"0\">\n                  <tr><td style=\"padding:5px 0;color:#454F5E;font-size:14px;\">&#10003;&nbsp;&nbsp;Plan nutricional semanal personalizado</td></tr>\n                  <tr><td style=\"padding:5px 0;color:#454F5E;font-size:14px;\">&#10003;&nbsp;&nbsp;Macros y calorías calculados para tu objetivo</td></tr>\n                  <tr><td style=\"padding:5px 0;color:#454F5E;font-size:14px;\">&#10003;&nbsp;&nbsp;Adaptado a tus alergias e intolerancias</td></tr>\n                  <tr><td style=\"padding:5px 0;color:#454F5E;font-size:14px;\">&#10003;&nbsp;&nbsp;Entregado en tu correo en minutos</td></tr>\n                </table>\n              </td>\n            </tr>\n          </table>\n\n          <!-- PRICE -->\n          <p style=\"margin:0 0 24px;color:#454F5E;font-size:14px;text-align:center;\">\n            Precio: <strong style=\"color:#0F172A;font-size:20px;\">39,95€</strong> — pago único, sin suscripción.\n          </p>\n\n          <!-- CTA BUTTON -->\n          <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">\n            <tr>\n              <td align=\"center\" style=\"padding:8px 0 24px;\">\n                <a href=\"{{ $('Stripe - Crear Sesión Pago').first().json.url }}\" style=\"display:inline-block;background:#FB5FAB;color:#ffffff;font-family:'Montserrat',Arial,sans-serif;font-size:16px;font-weight:700;text-decoration:none;padding:16px 40px;border-radius:8px;letter-spacing:0.5px;\">\n                  Completar pago →\n                </a>\n              </td>\n            </tr>\n          </table>\n\n          <p style=\"margin:0;color:#999;font-size:12px;text-align:center;line-height:1.6;\">\n            Este enlace es personal e intransferible. Expira en 24 horas.<br>\n            ¿Tienes alguna duda? Llámanos al <strong style=\"color:#0F172A;\">608 899 943</strong>\n          </p>\n        </td>\n      </tr>\n\n      <!-- FOOTER -->\n      <tr>\n        <td style=\"background:#0F172A;padding:20px 32px;text-align:center;\">\n          <p style=\"margin:0 0 6px;color:#FB5FAB;font-size:13px;font-weight:700;letter-spacing:1px;\">G2FIT NUTRICIÓN</p>\n          <p style=\"margin:0;color:#64748b;font-size:11px;\">Tu bienestar, nuestra misión</p>\n        </td>\n      </tr>\n\n    </table>\n  </td></tr>\n</table>\n</body>\n</html>",
+        "options": {}
+      },
+      "id": "7e801c56-77a9-414a-afca-f42d0c6cde11",
+      "name": "Gmail - Enviar Link de Pago",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        2528,
+        2544
+      ],
+      "webhookId": "stripe-gmail-link-001",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "RZGUSaOkiTerUP8u",
+          "name": "G2fit dietas"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Nueva Solicitud": {
+      "main": [
+        [
+          {
+            "node": "Set - Normalizar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Normalizar Datos": {
+      "main": [
+        [
+          {
+            "node": "Function - Calcular Macros",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Function - Calcular Macros": {
+      "main": [
+        [
+          {
+            "node": "Supabase - Insertar Cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase - Insertar Cliente": {
+      "main": [
+        [
+          {
+            "node": "IF - Ya Tiene Sesion Pago",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Ya Tiene Sesion Pago": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stripe - Crear Sesión Pago",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stripe - Crear Sesión Pago": {
+      "main": [
+        [
+          {
+            "node": "Supabase - Guardar Session Stripe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase - Guardar Session Stripe": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Enviar Link de Pago",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail - Enviar Link de Pago": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "qeKgNuBOxAj1GaGb",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "1cd7cebb-3831-499d-96ac-cecf7bf633a5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "589208084f93e2d99b2f35ec21d5d12f9965377a406958ac814e644256241513"
+  },
+  "id": "mJg641WTgGpNzmi0",
+  "tags": [
+    {
+      "updatedAt": "2026-02-25T17:52:05.434Z",
+      "createdAt": "2026-02-25T17:52:05.434Z",
+      "id": "Fc5BQxcFqw01WjoB",
+      "name": "G2Fit"
+    },
+    {
+      "updatedAt": "2026-02-25T17:52:05.439Z",
+      "createdAt": "2026-02-25T17:52:05.439Z",
+      "id": "NgnB3NbshGDtTyH6",
+      "name": "Producción"
+    },
+    {
+      "updatedAt": "2026-02-25T17:52:05.449Z",
+      "createdAt": "2026-02-25T17:52:05.449Z",
+      "id": "wPURHWewhdDCdVEx",
+      "name": "Nutrición"
+    }
+  ]
+}

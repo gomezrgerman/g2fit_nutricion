@@ -1,0 +1,54 @@
+{
+  "name": "G2Fit - 0. Error Handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "error-trigger-g2fit-001",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "sendTo": "Lydia.dietista.denia@gmail.com",
+        "subject": "=⚠️ Error en G2Fit — {{ $json.workflow.name }}",
+        "message": "=<!DOCTYPE html><html lang=\"es\"><head><meta charset=\"UTF-8\"><link href=\"https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap\" rel=\"stylesheet\"></head><body style=\"margin:0;padding:0;background:#f4f4f4;font-family:'Montserrat',Arial,sans-serif;\"><table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#f4f4f4;padding:32px 16px;\"><tr><td align=\"center\"><table width=\"520\" cellpadding=\"0\" cellspacing=\"0\" style=\"max-width:520px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);\"><tr><td style=\"background:#0F172A;padding:24px 32px;text-align:center;\"><img src=\"https://g2fit.es/wp-content/uploads/2024/06/cropped-IMG_5187-1-180x85.png\" alt=\"G2Fit\" style=\"height:50px;max-width:160px;object-fit:contain;filter:brightness(0) invert(1);\" /></td></tr><tr><td style=\"background:#ef4444;padding:10px 32px;text-align:center;\"><p style=\"margin:0;color:#fff;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;\">⚠️ Error en el Sistema</p></td></tr><tr><td style=\"padding:32px 36px 28px;\"><h2 style=\"margin:0 0 20px;color:#0F172A;font-size:18px;font-weight:700;\">Ha fallado un workflow</h2><table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#f8fafc;border-radius:10px;margin-bottom:20px;\"><tr><td style=\"padding:16px 20px;\"><table cellpadding=\"0\" cellspacing=\"0\" width=\"100%\"><tr><td style=\"color:#64748b;font-size:12px;padding-bottom:4px;text-transform:uppercase;letter-spacing:1px;\">Workflow</td></tr><tr><td style=\"color:#0F172A;font-size:16px;font-weight:700;padding-bottom:12px;\">{{ $json.workflow.name }}</td></tr><tr><td style=\"color:#64748b;font-size:12px;padding-bottom:4px;text-transform:uppercase;letter-spacing:1px;\">ID de ejecución</td></tr><tr><td style=\"color:#454F5E;font-size:14px;padding-bottom:12px;\">{{ $json.execution.id }}</td></tr><tr><td style=\"color:#64748b;font-size:12px;padding-bottom:4px;text-transform:uppercase;letter-spacing:1px;\">Nodo que falló</td></tr><tr><td style=\"color:#454F5E;font-size:14px;padding-bottom:12px;\">{{ $json.execution.lastNodeExecuted || 'Desconocido' }}</td></tr></table></td></tr></table><div style=\"background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:16px 20px;margin-bottom:20px;\"><p style=\"margin:0 0 8px;color:#ef4444;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;\">Mensaje de error</p><p style=\"margin:0;color:#7f1d1d;font-size:13px;font-family:monospace;word-break:break-all;\">{{ $json.error.message }}</p></div><p style=\"margin:0;color:#94a3b8;font-size:12px;line-height:1.6;\">Accede al historial de ejecuciones en n8n para ver el stack completo y los datos de entrada que causaron el error.</p></td></tr><tr><td style=\"background:#0F172A;padding:18px 32px;text-align:center;\"><p style=\"margin:0;color:#FB5FAB;font-size:12px;font-weight:700;letter-spacing:1px;\">G2FIT NUTRICIÓN — SISTEMA AUTOMÁTICO</p></td></tr></table></td></tr></table></body></html>",
+        "options": {}
+      },
+      "id": "gmail-error-g2fit-001",
+      "name": "Gmail - Alerta Error Sistema",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [480, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "RZGUSaOkiTerUP8u",
+          "name": "G2fit dietas"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Alerta Error Sistema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "589208084f93e2d99b2f35ec21d5d12f9965377a406958ac814e644256241513"
+  },
+  "tags": []
+}

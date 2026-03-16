@@ -1,0 +1,795 @@
+{
+  "name": "G2Fit - 2. Generador de Dietas",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "recetas",
+        "returnAll": true,
+        "filterType": "string",
+        "filterString": "activa=eq.true"
+      },
+      "id": "38ac42d8-f9c4-4dc7-ac1c-e51716aeeeff",
+      "name": "Supabase - Consultar Recetas",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -32528,
+        8832
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "nEeesz8yShWcFoTO",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== CONSTRUIR PROMPT PARA CLAUDE (Nutricionista Experto) =====\n\nconst item = $input.first().json;\nconst cliente = item.cliente;\nconst calculos = item.calculos;\nconst cliente_id = item.cliente_id;\nconst recetas = item.recetas_disponibles || [];\nconst recetasANoRepetir = item.recetas_a_no_repetir || [];\n\n// ─── Sanitización de inputs del cliente (previene prompt injection y overflow) ─\nconst sanitize = (val, max = 300) => {\n  if (val === null || val === undefined) return val;\n  if (typeof val !== 'string') return val;\n  return val.slice(0, max).replace(/ignore previous instructions|forget|disregard|system prompt|jailbreak/gi, '[filtrado]');\n};\ncliente.datos_interes = sanitize(cliente.datos_interes);\ncliente.notas_proteinas = sanitize(cliente.notas_proteinas);\ncliente.dieta_anterior = sanitize(cliente.dieta_anterior, 200);\ncliente.alimentos_a_evitar = sanitize(cliente.alimentos_a_evitar);\ncliente.medicacion = sanitize(cliente.medicacion);\ncliente.consume_verduras = sanitize(cliente.consume_verduras, 150);\ncliente.frutos_secos_preferidos = sanitize(cliente.frutos_secos_preferidos, 150);\ncliente.consume_alcohol = sanitize(cliente.consume_alcohol, 100);\ncliente.pica_entre_comidas = sanitize(cliente.pica_entre_comidas, 100);\n\n// ─── Helpers ─────────────────────────────────────────────────────────────────\nconst lista = (arr) => arr && arr.length > 0 ? arr.join(', ') : 'Ninguna';\nconst listaOk = (arr) => arr && arr.length > 0;\n\n// ─── Distribución por comida ──────────────────────────────────────────────────\nconst dist = calculos.distribucion_por_comida || {};\nconst comidasNombres = Object.keys(dist);\nconst comidasStr = comidasNombres.length > 0\n  ? comidasNombres.join(', ')\n  : (cliente.comidas_seleccionadas && cliente.comidas_seleccionadas.length > 0\n      ? cliente.comidas_seleccionadas.join(', ')\n      : 'Desayuno, Snack Mañana, Comida, Snack Tarde, Cena');\n\nconst distLineas = Object.entries(dist).map(([nombre, m]) =>\n  `  - ${nombre}: ~${m.calorias} kcal | ${m.proteinas}g prot | ${m.carbohidratos}g carb | ${m.grasas}g grasa`\n).join('\\n');\n\n// ─── Preferencias ────────────────────────────────────────────────────────────\nconst prefLineas = [];\nif (cliente.consume_lacteos === false || cliente.consume_lacteos === 'false' || cliente.consume_lacteos === 'no') prefLineas.push('⛔ NO consume lácteos - EXCLUIR COMPLETAMENTE de todas las comidas: leche, yogur, queso, mantequilla, nata');\nelse if (cliente.consume_lacteos === true) prefLineas.push('- Consume lácteos: Sí');\nif (listaOk(cliente.proteinas_preferidas)) prefLineas.push(`- Proteínas preferidas: ${lista(cliente.proteinas_preferidas)}`);\nif (cliente.notas_proteinas) prefLineas.push(`- Notas sobre proteínas: ${cliente.notas_proteinas}`);\nif (listaOk(cliente.apetencias)) prefLineas.push(`- Apetencias / gustos: ${lista(cliente.apetencias)}`);\nif (cliente.consume_verduras) prefLineas.push(`- Verduras: ${cliente.consume_verduras}`);\nif (listaOk(cliente.carbohidratos_preferidos)) prefLineas.push(`- Carbohidratos preferidos: ${lista(cliente.carbohidratos_preferidos)}`);\nif (cliente.frutos_secos_preferidos) prefLineas.push(`- Frutos secos: ${cliente.frutos_secos_preferidos}`);\n// alimentos_a_evitar movido a RESTRICCIONES ABSOLUTAS — no va aquí\nif (cliente.consume_alcohol) prefLineas.push(`- Consumo de alcohol: ${cliente.consume_alcohol}`);\nif (cliente.pica_entre_comidas) prefLineas.push(`- Picoteo entre comidas: ${cliente.pica_entre_comidas}`);\nif (cliente.dieta_anterior) prefLineas.push(`- Dieta anterior seguida: ${cliente.dieta_anterior}`);\nif (cliente.datos_interes) prefLineas.push(`⚠️ INFORMACIÓN VITAL — El cliente ha especificado lo siguiente y el plan DEBE adaptarse a ello: ${cliente.datos_interes}`);\nif (cliente.consume_bebidas_azucaradas) prefLineas.push(`- Bebidas azucaradas: ${cliente.consume_bebidas_azucaradas}`);\nif (listaOk(cliente.bebidas_vegetales_preferidas)) prefLineas.push(`- Bebidas vegetales preferidas: ${lista(cliente.bebidas_vegetales_preferidas)}`);\n\n// ─── Notas especiales por edad/sexo ──────────────────────────────────────────\nconst notasLineas = (calculos.notas_especiales || []).map(n => `- ${n}`).join('\\n');\n\n// ─── Alertas ─────────────────────────────────────────────────────────────────\nconst alertasLineas = (calculos.alertas || []).map(a => `- ${a}`).join('\\n');\n\n// ─── Restricciones por tipo de dieta ────────────────────────────────────────\nconst tipoDietaLineas = [];\nconst td = (cliente.tipo_dieta || 'no').toLowerCase();\nif (td === 'vegetariana') {\n  tipoDietaLineas.push('⛔ DIETA VEGETARIANA — PROHIBIDO ABSOLUTAMENTE usar en ningún plato ni ingrediente:');\n  tipoDietaLineas.push('  - Cualquier carne: pollo, ternera, cerdo, pavo, cordero, conejo, embutidos, jamón, bacon, salchichas');\n  tipoDietaLineas.push('  - Cualquier pescado: salmón, merluza, atún, bacalao, sardinas, trucha, dorada, lubina');\n  tipoDietaLineas.push('  - Cualquier marisco: gambas, langostinos, mejillones, almejas, calamar, pulpo');\n  tipoDietaLineas.push('  PERMITIDO: huevos, lácteos, legumbres, tofu, tempeh, seitán, frutos secos, semillas');\n} else if (td === 'vegana') {\n  tipoDietaLineas.push('⛔ DIETA VEGANA — PROHIBIDO ABSOLUTAMENTE usar en ningún plato ni ingrediente:');\n  tipoDietaLineas.push('  - Cualquier carne: pollo, ternera, cerdo, pavo, cordero, conejo, embutidos, jamón, bacon, salchichas');\n  tipoDietaLineas.push('  - Cualquier pescado: salmón, merluza, atún, bacalao, sardinas, trucha, dorada, lubina');\n  tipoDietaLineas.push('  - Cualquier marisco: gambas, langostinos, mejillones, almejas, calamar, pulpo');\n  tipoDietaLineas.push('  - Huevos (de ningún tipo)');\n  tipoDietaLineas.push('  - Lácteos: leche, yogur, queso, mantequilla, nata, kéfir (de origen animal)');\n  tipoDietaLineas.push('  - Miel');\n  tipoDietaLineas.push('  OBLIGATORIO sustituir proteínas por: legumbres, tofu, tempeh, seitán, edamame, proteína vegana');\n  tipoDietaLineas.push('  OBLIGATORIO sustituir lácteos por: bebida vegetal, yogur vegetal, queso vegano, aceite de oliva');\n}\n\n// ─── Sustituciones por alergias/intolerancias ─────────────────────────────────\nconst alergias = [...(cliente.alergias || []), ...(cliente.intolerancias || [])];\nconst sustLineas = [];\nfor (const a of alergias) {\n  const al = a.toLowerCase();\n  if (al.includes('gluten') || al.includes('trigo') || al.includes('celiaco')) {\n    sustLineas.push('- SIN GLUTEN: sustituir pan/pasta/trigo por arroz, quinoa, maíz, patata, avena sin gluten');\n  }\n  if (al.includes('lactosa') || al.includes('lacteo') || al.includes('lácteo')) {\n    sustLineas.push('⛔ SIN LÁCTEOS DE NINGÚN TIPO: PROHIBIDO usar leche (entera, semi, desnatada, evaporada), yogur (normal, griego, desnatado), queso (de cualquier tipo), mantequilla, nata, crema, kéfir, requesón. OBLIGATORIO sustituir por: bebida de soja/avena/almendras/arroz, yogur vegetal de soja o coco, queso vegano, aceite de oliva en lugar de mantequilla.');\n  }\n  if (al.includes('huevo')) {\n    sustLineas.push('- SIN HUEVO: sustituir por tofu revuelto, legumbres como proteína');\n  }\n  if (al.includes('fruto') && al.includes('seco')) {\n    sustLineas.push('- SIN FRUTOS SECOS: sustituir por semillas de calabaza, girasol, chía, lino');\n  }\n  if (al.includes('pescado') || al.includes('marisco')) {\n    sustLineas.push('- SIN PESCADO/MARISCO: usar pollo, pavo, ternera, huevos como proteína principal. Para omega-3: semillas de lino, chía');\n  }\n}\n\n// ─── Restricciones proteínas desde notas_proteinas ──────────────────────────\nconst protRestriccionLineas = [];\nif (cliente.notas_proteinas) {\n  const notasProt = cliente.notas_proteinas.toLowerCase();\n  const palabrasRestriccion = ['no ', 'sin ', 'evito ', 'evitar ', 'no como ', 'no quiero ', 'no consumo ', 'soy vegetar', 'soy vegan', 'vegetarian', 'vegano', 'vegana'];\n  const esRestriccion = palabrasRestriccion.some(p => notasProt.includes(p));\n  if (esRestriccion) {\n    protRestriccionLineas.push('⛔ RESTRICCIÓN PROTEÍNAS (declarado por el cliente): ' + cliente.notas_proteinas);\n  }\n}\n\n// ─── Adaptación inteligente: gustos vs restricciones ─────────────────────────\nconst adaptLineas = [];\nconst todosGustos = [\n  ...(cliente.apetencias || []),\n  ...(cliente.proteinas_preferidas || []),\n  ...(cliente.carbohidratos_preferidos || []),\n].join(' ').toLowerCase();\nconst todosTexto = (todosGustos + ' ' + (cliente.datos_interes || '') + ' ' + (cliente.notas_proteinas || '') + ' ' + (cliente.alimentos_a_evitar || '')).toLowerCase();\nfor (const a of alergias) {\n  const al = a.toLowerCase();\n  if (al.includes('lactosa') || al.includes('lacteo') || al.includes('lácteo')) {\n    if (todosTexto.includes('café') || todosTexto.includes('coffee') || todosTexto.includes('leche')) {\n      adaptLineas.push('- Café con leche → usar leche sin lactosa o bebida vegetal (avena/soja/almendras)');\n    }\n    if (todosTexto.includes('yogur')) {\n      adaptLineas.push('- Yogur → usar yogur sin lactosa o yogur vegetal de soja/coco');\n    }\n    if (todosTexto.includes('queso')) {\n      adaptLineas.push('- Queso → usar queso sin lactosa o queso vegano');\n    }\n    if (todosTexto.includes('batido') || todosTexto.includes('proteina') || todosTexto.includes('proteína')) {\n      adaptLineas.push('- Batido de proteína → verificar que sea sin lactosa o usar proteína vegana');\n    }\n    if (todosTexto.includes('nata') || todosTexto.includes('crema')) {\n      adaptLineas.push('- Nata/crema → usar nata vegetal (avena, soja, coco)');\n    }\n  }\n  if (al.includes('gluten') || al.includes('celiaco') || al.includes('celíaco')) {\n    if (todosTexto.includes('avena')) {\n      adaptLineas.push('- Avena → usar avena certificada sin gluten');\n    }\n    if (todosTexto.includes('pan') || todosTexto.includes('tosta')) {\n      adaptLineas.push('- Pan/tostadas → usar pan sin gluten obligatoriamente');\n    }\n    if (todosTexto.includes('pasta')) {\n      adaptLineas.push('- Pasta → usar pasta sin gluten (arroz, maíz, lentejas)');\n    }\n  }\n}\n\n// ─── Objetivo label ───────────────────────────────────────────────────────────\nconst objLabel = {\n  perder_peso: 'Pérdida de peso (déficit -20%)',\n  ganar_masa: 'Ganancia de masa muscular (superávit +12%)',\n  definicion: 'Definición muscular (déficit leve -12%)',\n  mantener: 'Mantenimiento de peso'\n}[cliente.objetivo] || cliente.objetivo;\n\n// ─── Filtrar recetas según tipo de dieta ─────────────────────────────────────\nconst PROHIBIDOS_VEGANO = ['pollo', 'pavo', 'ternera', 'cerdo', 'cordero', 'conejo', 'jamón', 'jamon', 'bacon', 'salchicha', 'embutido', 'carne', 'salmón', 'salmon', 'merluza', 'atún', 'atun', 'bacalao', 'sardina', 'trucha', 'dorada', 'lubina', 'pescado', 'gamba', 'langostino', 'mejillon', 'mejillón', 'almeja', 'calamar', 'pulpo', 'marisco', 'huevo', 'leche', 'yogur', 'queso', 'mantequilla', 'nata', 'kefir', 'kéfir', 'requesón', 'requezon', 'miel', 'lacteo', 'lácteo'];\nconst PROHIBIDOS_VEGETARIANO = ['pollo', 'pavo', 'ternera', 'cerdo', 'cordero', 'conejo', 'jamón', 'jamon', 'bacon', 'salchicha', 'embutido', 'carne', 'salmón', 'salmon', 'merluza', 'atún', 'atun', 'bacalao', 'sardina', 'trucha', 'dorada', 'lubina', 'pescado', 'gamba', 'langostino', 'mejillon', 'mejillón', 'almeja', 'calamar', 'pulpo', 'marisco'];\n\nfunction recetaEsCompatible(receta, tipoDieta) {\n  if (tipoDieta === 'no') return true;\n  const prohibidos = tipoDieta === 'vegana' ? PROHIBIDOS_VEGANO : PROHIBIDOS_VEGETARIANO;\n  const textoReceta = (receta.nombre + ' ' + (receta.ingredientes || []).map(i => typeof i === 'string' ? i : (i.nombre || '')).join(' ')).toLowerCase();\n  return !prohibidos.some(p => textoReceta.includes(p));\n}\n\nconst recetasCompatibles = recetas.filter(r => recetaEsCompatible(r, td));\nconst recetasIncompatibles = recetas.length - recetasCompatibles.length;\nif (recetasIncompatibles > 0) {\n  console.log(`Filtradas ${recetasIncompatibles} recetas incompatibles con dieta ${td}`);\n}\n\n// ─── Formato de recetas disponibles ──────────────────────────────────────────\nconst recetasPorCategoria = {};\nfor (const r of recetasCompatibles) {\n  const cat = r.categoria || 'otras';\n  if (!recetasPorCategoria[cat]) recetasPorCategoria[cat] = [];\n  const ings = (r.ingredientes || []).slice(0, 6).map(i => typeof i === 'string' ? i : (i.nombre || '')).filter(Boolean).join(', ');\n  recetasPorCategoria[cat].push(\n    '  · ' + r.nombre + ' (' + (r.calorias || 0) + ' kcal | P:' + (r.proteinas_g || 0) + 'g C:' + (r.carbohidratos_g || 0) + 'g G:' + (r.grasas_g || 0) + 'g)' + (ings ? ' → ' + ings : '')\n  );\n}\nconst recetasStr = recetasCompatibles.length > 0\n  ? Object.entries(recetasPorCategoria).map(([cat, items]) =>\n      cat.toUpperCase() + ':\\n' + items.join('\\n')\n    ).join('\\n\\n')\n  : null;\n\n// ─── Reglas dinámicas según tipo de dieta ────────────────────────────────────\nconst reglaProteinas = td === 'vegana'\n  ? 'Fuentes a rotar (SOLO VEGETALES): legumbres (lentejas, garbanzos, alubias, edamame), tofu, tempeh, seitán, proteína vegana en polvo, frutos secos como proteína'\n  : td === 'vegetariana'\n  ? 'Fuentes a rotar (SIN CARNE NI PESCADO): huevos, queso, yogur griego, legumbres, tofu, tempeh, seitán, frutos secos'\n  : 'Fuentes a rotar: pollo, pavo, ternera magra, salmón, merluza, atún, huevos, legumbres';\n\nconst reglaGrasas = td === 'vegana' || td === 'vegetariana'\n  ? 'Usar principalmente aceite de oliva virgen extra, aguacate, frutos secos, semillas de lino/chía/cáñamo (fuente de omega-3 vegetal)'\n  : 'Usar principalmente aceite de oliva virgen extra, aguacate, frutos secos, pescado azul';\n\n// ─── Regla de carbohidratos: excluir alimentos prohibidos por el cliente ──────\nconst alimentosEvitarLower = (cliente.alimentos_a_evitar || '').toLowerCase();\nconst carbosBase = ['arroz integral', 'quinoa', 'boniato', 'avena', 'pasta integral'];\nconst carbosPermitidos = carbosBase.filter(c => !c.split(' ').some(word => alimentosEvitarLower.includes(word)));\nconst reglaCarbs = carbosPermitidos.length > 0 ? carbosPermitidos.join(', ') : 'arroz integral, quinoa, boniato, pasta integral';\n\nconst tipoDietaAviso = td !== 'no'\n  ? `⛔⛔⛔ ESTE CLIENTE ES ${td.toUpperCase()}. ANTES DE INCLUIR CUALQUIER INGREDIENTE, VERIFICA QUE ES APTO. SI TIENES DUDA, NO LO USES. ⛔⛔⛔`\n  : '';\n\nconst prompt = `${tipoDietaAviso ? tipoDietaAviso + '\\n\\n' : ''}Eres un nutricionista dietista experto con 15 años de experiencia. Debes generar un plan nutricional personalizado de 1 SEMANA COMPLETA (Lunes a Domingo, 7 días) que el cliente repetirá durante todo el mes.\n\n════════════════════════════════════════\nDATOS DEL CLIENTE\n════════════════════════════════════════\n- Nombre: ${cliente.nombre} ${cliente.apellidos || ''}\n- Edad: ${cliente.edad} años | Sexo: ${cliente.sexo}\n- Peso: ${cliente.peso_actual} kg | Altura: ${cliente.altura} cm\n- IMC: ${calculos.imc} (${calculos.imc_categoria})${(cliente.contorno_abdominal_1 || cliente.contorno_abdominal_2 || cliente.contorno_abdominal_3) ? `\n- Contorno abdominal: arriba ${cliente.contorno_abdominal_1}cm | ombligo ${cliente.contorno_abdominal_2}cm | abajo ${cliente.contorno_abdominal_3}cm` : ''}\n- Peso objetivo: ${cliente.peso_objetivo || 'No especificado'} kg\n- Objetivo: ${objLabel}\n- Nivel de actividad: ${cliente.nivel_actividad}\n- Tiempo para lograr el objetivo: ${cliente.tiempo_objetivo || 'No especificado'}\n\n════════════════════════════════════════\nREQUERIMIENTOS NUTRICIONALES CALCULADOS\n(Fórmula Mifflin-St Jeor - Evidencia científica)\n════════════════════════════════════════\n- TMB: ${calculos.tmb} kcal/día\n- TDEE: ${calculos.tdee} kcal/día\n- OBJETIVO CALÓRICO: ${calculos.objetivo.calorias} kcal/día\n- Proteínas: ${calculos.objetivo.proteinas_g}g/día (${(calculos.objetivo.proteinas_g / cliente.peso_actual).toFixed(1)}g/kg)\n- Carbohidratos: ${calculos.objetivo.carbohidratos_g}g/día\n- Grasas: ${calculos.objetivo.grasas_g}g/día (${(calculos.objetivo.grasas_g / cliente.peso_actual).toFixed(1)}g/kg)\n\nDISTRIBUCIÓN POR COMIDA (${comidasNombres.length || 5} comidas/día):\n${distLineas || `- Distribuir ${calculos.objetivo.calorias} kcal entre ${comidasStr}`}\n\n════════════════════════════════════════\n⛔ RESTRICCIONES ABSOLUTAS — NUNCA VIOLAR ⛔\n════════════════════════════════════════\n${tipoDietaLineas.length > 0 ? '\\n' + tipoDietaLineas.join('\\n') : ''}\n- Alergias: ${lista(cliente.alergias)}\n- Intolerancias: ${lista(cliente.intolerancias)}\n${sustLineas.length > 0 ? '\\n⛔ SUSTITUCIONES OBLIGATORIAS (verificar CADA ingrediente):\\n' + sustLineas.join('\\n') : ''}\n${cliente.alimentos_a_evitar ? `\n⛔ ALIMENTOS PROHIBIDOS (declarados por el cliente — NUNCA incluir en ninguna receta):\nPROHIBIDO usar: ${cliente.alimentos_a_evitar}\nEsto incluye como ingrediente principal Y como ingrediente secundario. Si una receta de la base de datos contiene alguno de estos alimentos, NO la uses y sustitúyela por otra.` : ''}\n${alertasLineas ? '\\nALERTAS CLÍNICAS:\\n' + alertasLineas : ''}\n${protRestriccionLineas.length > 0 ? `\n⛔ RESTRICCIONES DE PROTEÍNAS (OBLIGATORIO RESPETAR):\n${protRestriccionLineas.join('\\n')}` : ''}\n\n════════════════════════════════════════\nPREFERENCIAS DEL CLIENTE (adaptar el plan)\n════════════════════════════════════════\n${prefLineas.length > 0 ? prefLineas.join('\\n') : '- Sin preferencias especiales'}\n${adaptLineas.length > 0 ? `\n════════════════════════════════════════\nADAPTACIÓN OBLIGATORIA DE GUSTOS A RESTRICCIONES\n════════════════════════════════════════\nEl cliente tiene restricciones pero también gustos concretos. Aplica SIN EXCEPCIÓN:\n${adaptLineas.join('\\n')}\n` : ''}\n\n════════════════════════════════════════\nNOTAS NUTRICIONALES ESPECÍFICAS (aplicar)\n════════════════════════════════════════\n${notasLineas || '- Sin notas adicionales'}\n- Hidratación recomendada: ${Math.round(cliente.peso_actual * 35)} ml/día de agua\n${recetasStr ? `\n════════════════════════════════════════\nBASE DE RECETAS DE LA NUTRICIONISTA (OBLIGATORIO)\n════════════════════════════════════════\nDebes construir el plan usando PREFERENTEMENTE estas recetas propias de la nutricionista:\n\n${recetasStr}\n\nREGLAS DE USO DE RECETAS:\n- Usa estas recetas como base principal; adapta cantidades para cuadrar macros del cliente\n- Varía el hidrato principal: NO uses el mismo tipo de hidrato más de 2 veces en la semana\n  (ej: si arroz el lunes, no repetir hasta miércoles; si pasta el martes, no repetir hasta jueves)\n- Si una receta contiene ingredientes prohibidos, sustitúyela por otra receta compatible de la lista\n` : ''}\n\n════════════════════════════════════════\nREGLAS DE VARIEDAD Y CALIDAD (OBLIGATORIO)\n════════════════════════════════════════\n1. PROTEÍNAS: NO repetir la misma fuente proteica en días consecutivos\n   ${reglaProteinas}\n2. COLORES: Cada plato principal debe tener mínimo 3 colores de verduras\n   Ejemplo: verde (brócoli/espinacas) + rojo/naranja (pimiento/zanahoria) + blanco (cebolla/champiñón)\n3. TÉCNICAS CULINARIAS: Variar entre: plancha, horno, vapor, guiso, ensalada, wok\n4. CARBOHIDRATOS: Priorizar fuentes de bajo índice glucémico (${reglaCarbs})\n5. GRASAS: ${reglaGrasas}\n6. DISTRIBUCIÓN PROTEÍNA: Repartir EQUITATIVAMENTE en todas las comidas (~${Math.round(calculos.objetivo.proteinas_g / (comidasNombres.length || 5))}g por comida)\n7. Los 7 días de la semana deben ser COMPLETAMENTE DISTINTOS entre sí (NO repetir ningún plato en la misma semana)\n8. Cada comida DEBE incluir el campo \"preparacion\": array con 3-4 pasos de elaboración MUY BREVES (máximo 10 palabras por paso, redacción telegráfica)\\n9. PESOS EN CRUDO: Especifica SIEMPRE las cantidades de ingredientes en peso CRUDO (antes de cocinar). Escribe '(crudo)' junto a cada cantidad. CORRECTO: '80g arroz crudo', '120g pechuga pollo crudo', '50g avena cruda'. INCORRECTO: '150g arroz cocido', '200g pollo a la plancha'.\n10. SIN REPETICIÓN DE ALIMENTOS EN EL MISMO DÍA: Dentro de un mismo día NINGÚN alimento o ingrediente principal puede aparecer en más de una comida. Si el desayuno incluye pan, no uses pan en el almuerzo ni en la cena de ese día. Si la comida lleva arroz, la cena no lleva arroz. Aplica esto a: pan/tostadas, arroz, pasta, avena, patata, boniato, quinoa, huevo, pollo, pavo, ternera, salmón, atún, yogur, queso, legumbres, y cualquier otro ingrediente base. Cada comida del día debe construirse con ingredientes DIFERENTES a los de las otras comidas de ese día.\n11. POSTRE EN COMIDA (OBLIGATORIO TODOS LOS DÍAS): En la comida del mediodía SIEMPRE incluye un postre como parte final. Añádelo como último ingrediente de la comida y contabiliza sus macros dentro del total de esa comida. Opciones a rotar: fruta de temporada (naranja, manzana, pera, kiwi, melocotón, frutos rojos, sandía, melón), yogur natural o desnatado, yogur griego, flan, gelatina sin azúcar, requesón con canela. RESTRICCIONES: si el cliente tiene intolerancia a la lactosa o no consume lácteos, usa ÚNICAMENTE fruta o gelatina sin azúcar. Respeta SIEMPRE los alimentos que el cliente ha declarado que le sientan mal o quiere evitar.\n12. POSTRE O INFUSIÓN EN CENA (ALTERNADO): En la cena, alterna a lo largo de los 7 días: 3-4 días añade un postre ligero (fruta pequeña, gelatina sin azúcar) y los demás días añade una infusión o tisana (manzanilla, tila, valeriana, jengibre con limón, melisa, rooibos, anís) o nada adicional. Varía para que no sea siempre lo mismo.\n\n${recetasANoRepetir.length > 0 ? `\n════════════════════════════════════════\n⛔ RECETAS DEL PLAN ANTERIOR — NO REPETIR NINGUNA\n════════════════════════════════════════\nEste cliente está RENOVANDO su dieta. Las siguientes recetas ya las comió el mes anterior y NO pueden aparecer en este nuevo plan bajo NINGÚN concepto:\n${recetasANoRepetir.map(r => \"- \" + r).join(\"\\n\")}\n\nGENERA PLATOS COMPLETAMENTE DIFERENTES a todos los listados arriba.\n` : ''}\n════════════════════════════════════════\nINSTRUCCIONES DE FORMATO (CRÍTICO)\n════════════════════════════════════════\n1. Responde SOLO con JSON válido, sin texto antes ni después\n2. NO uses markdown (\\`\\`\\`json)\n3. El JSON debe empezar con { y terminar con }\n4. Incluye EXACTAMENTE 1 semana con 7 días completos (Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo). NO omitas ni Sábado ni Domingo\n5. Cada día incluye SOLO las comidas seleccionadas: ${comidasStr}\n6. Los macros de cada comida deben sumar los totales del día\n7. El campo \"preparacion\" es OBLIGATORIO en cada comida (3-4 pasos breves)\n\nESTRUCTURA REQUERIDA:\n{\n  \"semanas\": [\n    {\n      \"numero\": 1,\n      \"dias\": [\n        {\n          \"dia\": 1,\n          \"nombre_dia\": \"Lunes\",\n          \"comidas\": [\n            {\n              \"tipo\": \"${comidasNombres[0] || 'Desayuno'}\",\n              \"nombre\": \"Nombre descriptivo del plato\",\n              \"ingredientes\": [\"ingrediente con cantidad\", \"ingrediente con cantidad\"],\n              \"preparacion\": [\"Paso 1 muy breve\", \"Paso 2\", \"Paso 3\"],\n              \"calorias\": 400,\n              \"proteinas\": 30,\n              \"carbohidratos\": 45,\n              \"grasas\": 10\n            }\n          ],\n          \"totales_dia\": {\n            \"calorias\": ${calculos.objetivo.calorias},\n            \"proteinas\": ${calculos.objetivo.proteinas_g},\n            \"carbohidratos\": ${calculos.objetivo.carbohidratos_g},\n            \"grasas\": ${calculos.objetivo.grasas_g}\n          }\n        },\n        {\n          \"dia\": 2,\n          \"nombre_dia\": \"Martes\",\n          \"comidas\": [ ... comidas distintas al Lunes ... ],\n          \"totales_dia\": { ... }\n        },\n        { \"dia\": 3, \"nombre_dia\": \"Miércoles\", ... },\n        { \"dia\": 4, \"nombre_dia\": \"Jueves\", ... },\n        { \"dia\": 5, \"nombre_dia\": \"Viernes\", ... },\n        { \"dia\": 6, \"nombre_dia\": \"Sábado\", ... },\n        { \"dia\": 7, \"nombre_dia\": \"Domingo\", ... }\n      ]\n    }\n  ],\n  \"resumen_plan\": {\n    \"calorias_promedio\": ${calculos.objetivo.calorias},\n    \"proteinas_promedio\": ${calculos.objetivo.proteinas_g},\n    \"carbohidratos_promedio\": ${calculos.objetivo.carbohidratos_g},\n    \"grasas_promedio\": ${calculos.objetivo.grasas_g},\n    \"nota_rotacion\": \"Esta semana se repite durante todo el mes\"\n  }\n}\n\n${td !== 'no' ? `\n⛔ VERIFICACIÓN FINAL OBLIGATORIA ANTES DE RESPONDER:\nRevisa CADA ingrediente de CADA comida de los 7 días.\n${td === 'vegana' ? 'Lista de verificación VEGANA — estos ingredientes están PROHIBIDOS y NO deben aparecer en ningún lugar del JSON:\\n- Carnes: pollo, pavo, ternera, cerdo, cordero, jamón, bacon, embutidos\\n- Pescados: salmón, merluza, atún, bacalao, sardinas, trucha\\n- Mariscos: gambas, langostinos, mejillones, almejas\\n- Huevos\\n- Lácteos: leche, yogur, queso, mantequilla, nata\\n- Miel\\nSi encuentras CUALQUIERA de estos en tu respuesta, SUSTITÚYELO antes de responder.' : 'Lista de verificación VEGETARIANA — estos ingredientes están PROHIBIDOS:\\n- Carnes: pollo, pavo, ternera, cerdo, cordero, jamón, bacon, embutidos\\n- Pescados: salmón, merluza, atún, bacalao, sardinas, trucha\\n- Mariscos: gambas, langostinos, mejillones, almejas\\nSi encuentras CUALQUIERA de estos en tu respuesta, SUSTITÚYELO antes de responder.'}\n` : ''}\nGenera ahora el plan completo en JSON puro con los 7 días. OBLIGATORIO: incluir Sábado y Domingo con comidas distintas al resto de la semana.`;\n\nreturn [{\n  json: {\n    prompt,\n    cliente_id,\n    nombre_cliente: cliente.nombre,\n    objetivo: cliente.objetivo,\n    calculos,\n    cliente,\n    recetas_a_no_repetir: recetasANoRepetir\n  }\n}];\n"
+      },
+      "id": "be17c622-1c23-4720-9bd2-4f87bcb880fa",
+      "name": "Function - Construir Prompt Claude",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -32224,
+        8832
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== VALIDACIÓN ROBUSTA DE RESPUESTA IA (1 semana × 7 días Lun-Dom) =====\nconst inputData = $input.first().json;\nconst promptData = $node['Function - Construir Prompt Claude'].json;\nconst calculos = promptData.calculos;\n\nconsole.log('=== INICIO VALIDACIÓN ===');\nconsole.log('Input keys:', Object.keys(inputData));\n\n// Paso 1: Extraer respuesta de Claude\nlet respuestaClaude;\ntry {\n  if (inputData.content && Array.isArray(inputData.content) && inputData.content[0]?.text) {\n    respuestaClaude = inputData.content[0].text;\n    console.log('Respuesta extraída de: content[0].text');\n  } else if (inputData.output) {\n    respuestaClaude = inputData.output;\n  } else if (inputData.text) {\n    respuestaClaude = inputData.text;\n  } else if (typeof inputData === 'string') {\n    respuestaClaude = inputData;\n  } else {\n    throw new Error('No se encontró respuesta. Estructura: ' + JSON.stringify(Object.keys(inputData)));\n  }\n} catch(e) {\n  return [{\n    json: {\n      validacion: { valido: false, errores: ['Error extrayendo: ' + e.message], advertencias: [], metricas: {} },\n      requiere_revision: true,\n      motivo_revision: 'Error extrayendo: ' + e.message,\n      plan_dieta: null,\n      cliente_id: promptData.cliente_id,\n      nombre_cliente: promptData.nombre_cliente,\n      objetivo: promptData.objetivo,\n      calculos\n    }\n  }];\n}\n\nconsole.log('Longitud respuesta:', respuestaClaude.length, 'caracteres');\n\n// Paso 2: Limpiar y parsear JSON\nlet planDieta;\ntry {\n  let jsonStr = respuestaClaude.trim();\n  if (jsonStr.startsWith('```')) {\n    jsonStr = jsonStr.replace(/```json?\\n?/g, '').replace(/```$/g, '').trim();\n  }\n  if (!jsonStr.startsWith('{')) throw new Error('No comienza con {');\n  if (!jsonStr.endsWith('}')) throw new Error('JSON incompleto');\n  planDieta = JSON.parse(jsonStr);\n  console.log('JSON parseado correctamente');\n} catch(e) {\n  console.log('Error parseando JSON:', e.message);\n  return [{\n    json: {\n      validacion: {\n        valido: false,\n        errores: ['Error parseando: ' + e.message],\n        advertencias: [],\n        metricas: {},\n        debug_respuesta: respuestaClaude.substring(0, 500)\n      },\n      requiere_revision: true,\n      motivo_revision: 'Error parseando JSON: ' + e.message,\n      plan_dieta: null,\n      cliente_id: promptData.cliente_id,\n      nombre_cliente: promptData.nombre_cliente,\n      objetivo: promptData.objetivo,\n      calculos\n    }\n  }];\n}\n\n// Paso 3: Validaciones\nconst errores = [];\nconst advertencias = [];\n\nif (!planDieta.semanas) {\n  errores.push('Falta propiedad \"semanas\"');\n} else if (!Array.isArray(planDieta.semanas)) {\n  errores.push('\"semanas\" no es array');\n} else {\n  console.log('Número de semanas:', planDieta.semanas.length);\n\n  // Validar que hay 1 semana\n  if (planDieta.semanas.length < 1) {\n    errores.push(`No hay semanas en el plan generado`);\n  }\n\n  planDieta.semanas.forEach((semana, si) => {\n    if (!semana.dias || !Array.isArray(semana.dias)) {\n      errores.push(`Semana ${si + 1}: falta \"dias\"`);\n      return;\n    }\n\n    console.log(`Semana ${si + 1}: ${semana.dias.length} días`);\n\n    // Debe tener 7 días (Lun-Dom)\n    if (semana.dias.length < 7) {\n      errores.push(`Semana ${si + 1}: tiene ${semana.dias.length} días (se requieren 7: Lunes a Domingo)`);\n    }\n\n    semana.dias.forEach((dia, di) => {\n      const tot = dia.totales_dia;\n      if (!tot) {\n        advertencias.push(`S${si + 1}D${di + 1}: falta \"totales_dia\"`);\n      } else {\n        const cal = tot.calorias;\n        const calMin = calculos.rangos.calorias.min;\n        const calMax = calculos.rangos.calorias.max;\n        if (!cal) {\n          advertencias.push(`S${si + 1}D${di + 1}: falta \"totales_dia.calorias\"`);\n        } else if (cal < calMin || cal > calMax) {\n          advertencias.push(`S${si + 1}D${di + 1}: cal=${cal} fuera de [${calMin}-${calMax}]`);\n        }\n      }\n\n      if (!dia.comidas || !Array.isArray(dia.comidas) || dia.comidas.length === 0) {\n        errores.push(`S${si + 1}D${di + 1}: no tiene comidas`);\n      }\n    });\n  });\n}\n\n// Paso 4: Métricas\nconst resumen = planDieta.resumen_plan || {};\nconst metricas = {\n  semanas_generadas: planDieta.semanas ? planDieta.semanas.length : 0,\n  dias_por_semana: planDieta.semanas && planDieta.semanas[0] ? planDieta.semanas[0].dias.length : 0,\n  calorias_promedio: resumen.calorias_promedio || 0,\n  proteinas_promedio: resumen.proteinas_promedio || 0,\n  carbohidratos_promedio: resumen.carbohidratos_promedio || 0,\n  grasas_promedio: resumen.grasas_promedio || 0,\n  desviacion_calorias_pct: resumen.calorias_promedio\n    ? parseFloat(((Math.abs(resumen.calorias_promedio - calculos.objetivo.calorias) / calculos.objetivo.calorias) * 100).toFixed(1))\n    : 0\n};\n\nconsole.log('Métricas:', metricas);\n\n// Paso 4b: Verificación de recetas repetidas (renovaciones)\nconst recetasANoRepetir = promptData.recetas_a_no_repetir || [];\nif (recetasANoRepetir.length > 0 && planDieta.semanas) {\n  const nombresNuevos = [];\n  for (const sem of planDieta.semanas) {\n    for (const dia of (sem.dias || [])) {\n      for (const comida of (dia.comidas || [])) {\n        if (comida.nombre) nombresNuevos.push(comida.nombre.trim().toLowerCase());\n      }\n    }\n  }\n  const repetidas = recetasANoRepetir.filter(recetaAnterior => {\n    const ra = recetaAnterior.trim().toLowerCase();\n    return nombresNuevos.some(nuevo => nuevo === ra || nuevo.includes(ra) || ra.includes(nuevo));\n  });\n  if (repetidas.length > 0) {\n    advertencias.push('RECETAS REPETIDAS del plan anterior (' + repetidas.length + '): ' + repetidas.slice(0, 5).join(', '));\n    console.log('Recetas repetidas detectadas:', repetidas);\n  } else {\n    console.log('OK: Ninguna receta repetida del plan anterior (' + recetasANoRepetir.length + ' verificadas)');\n  }\n}\n\n// Paso 5: Decisión de revisión\nconst valido = errores.length === 0;\nconst requiere_revision =\n  !valido ||\n  advertencias.length > 5 ||\n  metricas.desviacion_calorias_pct > 10 ||\n  (calculos.alertas && calculos.alertas.length > 0);\n\nlet motivo_revision = '';\nif (!valido) {\n  motivo_revision = errores.join('; ');\n} else if (advertencias.length > 5) {\n  motivo_revision = `${advertencias.length} advertencias`;\n} else if (metricas.desviacion_calorias_pct > 10) {\n  motivo_revision = `Desviación calórica: ${metricas.desviacion_calorias_pct}%`;\n} else if (calculos.alertas?.length > 0) {\n  motivo_revision = calculos.alertas[0];\n}\n\nconsole.log('Válido:', valido, '| Revisión:', requiere_revision, '| Motivo:', motivo_revision);\n\nreturn [{\n  json: {\n    plan_dieta: planDieta,\n    validacion: { valido, errores, advertencias, metricas },\n    requiere_revision,\n    motivo_revision,\n    cliente_id: promptData.cliente_id,\n    nombre_cliente: promptData.nombre_cliente,\n    objetivo: promptData.objetivo,\n    calculos\n  }\n}];\n"
+      },
+      "id": "992b0a96-30ae-409b-b8e7-8d54e298cb4c",
+      "name": "Function - Validar Respuesta IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -31792,
+        8832
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond1",
+              "leftValue": "={{ $json.validacion.valido }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "88dc15a7-902e-4667-84fe-2f535d237711",
+      "name": "IF - Validación OK",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -31568,
+        8832
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "dietas_generadas",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "cliente_id",
+              "fieldValue": "={{ $json.cliente_id }}"
+            },
+            {
+              "fieldId": "estado",
+              "fieldValue": "={{ $json.requiere_revision ? 'en_revision' : 'generada' }}"
+            },
+            {
+              "fieldId": "calorias_objetivo",
+              "fieldValue": "={{ $json.calculos.objetivo.calorias }}"
+            },
+            {
+              "fieldId": "proteinas_objetivo",
+              "fieldValue": "={{ $json.calculos.objetivo.proteinas_g }}"
+            },
+            {
+              "fieldId": "carbohidratos_objetivo",
+              "fieldValue": "={{ $json.calculos.objetivo.carbohidratos_g }}"
+            },
+            {
+              "fieldId": "grasas_objetivo",
+              "fieldValue": "={{ $json.calculos.objetivo.grasas_g }}"
+            },
+            {
+              "fieldId": "calorias_reales",
+              "fieldValue": "={{ $json.validacion.metricas.calorias_promedio }}"
+            },
+            {
+              "fieldId": "desviacion_porcentaje",
+              "fieldValue": "={{ $json.validacion.metricas.desviacion_calorias_pct }}"
+            },
+            {
+              "fieldId": "plan_completo",
+              "fieldValue": "={{ JSON.stringify($json.plan_dieta) }}"
+            },
+            {
+              "fieldId": "requiere_revision",
+              "fieldValue": "={{ $json.requiere_revision }}"
+            },
+            {
+              "fieldId": "motivo_revision",
+              "fieldValue": "={{ $json.motivo_revision }}"
+            },
+            {
+              "fieldId": "modelo_ia",
+              "fieldValue": "claude-sonnet-4-20250514"
+            }
+          ]
+        }
+      },
+      "id": "6dcc2f49-2474-4744-aa27-ffe63be2b357",
+      "name": "Supabase - Guardar Dieta",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -31360,
+        8736
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "nEeesz8yShWcFoTO",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== PREPARAR DATOS PARA PDF =====\nconst dietaGuardada = $input.first().json;\nconst validacionData = $node['Function - Validar Respuesta IA'].json;\nconst calculosData = $node['Function - Reconstruir Datos tras Pago'].json;\n\nconst cliente = calculosData.cliente;\nconst calculos = calculosData.calculos;\nconst planDieta = validacionData.plan_dieta;\n\nif (!cliente || !calculos || !planDieta) {\n  throw new Error('Faltan datos. Cliente: ' + !!cliente + ', Calculos: ' + !!calculos + ', Plan: ' + !!planDieta);\n}\n\nconst fecha = new Date().toISOString().split('T')[0];\nconst nombreLimpio = (cliente.nombre || 'cliente').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();\nconst nombre_archivo = `dieta_${nombreLimpio}_${fecha}_${dietaGuardada.id.substring(0, 8)}.pdf`;\n\nconst datos_pdf = {\n  dieta_id: dietaGuardada.id,\n  fecha_generacion: fecha,\n  cliente: {\n    nombre: cliente.nombre,\n    apellidos: cliente.apellidos || '',\n    email: cliente.email,\n    edad: cliente.edad,\n    sexo: cliente.sexo,\n    peso_actual: cliente.peso_actual,\n    altura: cliente.altura,\n    imc: cliente.imc,\n    imc_categoria: cliente.imc_categoria,\n    objetivo: cliente.objetivo,\n    tiempo_objetivo: cliente.tiempo_objetivo || '',\n    comidas_diarias: cliente.comidas_diarias,\n    alergias: cliente.alergias || [],\n    intolerancias: cliente.intolerancias || []\n  },\n  objetivos_nutricionales: {\n    calorias: calculos.objetivo.calorias,\n    proteinas: calculos.objetivo.proteinas_g,\n    carbohidratos: calculos.objetivo.carbohidratos_g,\n    grasas: calculos.objetivo.grasas_g\n  },\n  calculos: {\n    tmb: calculos.tmb,\n    tdee: calculos.tdee,\n    objetivo: calculos.objetivo,\n    distribucion_por_comida: calculos.distribucion_por_comida || {},\n    notas_especiales: calculos.notas_especiales || [],\n    alertas: calculos.alertas || []\n  },\n  plan_semanal: planDieta.semanas,\n  resumen: planDieta.resumen_plan || {}\n};\n\nreturn [{\n  json: {\n    datos_pdf,\n    nombre_archivo,\n    dieta_id: dietaGuardada.id,\n    cliente_email: cliente.email,\n    cliente_nombre: cliente.nombre,\n    requiere_revision: validacionData.requiere_revision || false,\n    motivo_revision: validacionData.motivo_revision || ''\n  }\n}];\n"
+      },
+      "id": "d1b51f79-fb7d-4682-bc77-6cc00d629edd",
+      "name": "Function - Preparar Datos PDF",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -31136,
+        8736
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== GENERAR HTML EMAIL DEL PLAN NUTRICIONAL =====\nconst datos = $json.datos_pdf;\nconst nombre_archivo = $json.nombre_archivo;\nconst dieta_id = $json.dieta_id;\nconst cliente_email = $json.cliente_email;\nconst cliente_nombre = $json.cliente_nombre;\n\nif (!datos || !datos.cliente) { throw new Error('Faltan datos_pdf necesarios'); }\n\nconst c = datos.cliente;\nconst plan = datos.plan_semanal || [];\nconst obj = datos.objetivos_nutricionales || {};\n\nconst objLabel = {\n  perder_peso: 'Perder Peso',\n  ganar_masa: 'Ganar Masa Muscular',\n  mantener: 'Mantener Peso',\n  definicion: 'Definicion Muscular'\n}[c.objetivo] || c.objetivo || '';\n\nconst alerStr = (c.alergias && c.alergias.length) ? c.alergias.join(', ') : 'Ninguna';\nconst intolStr = (c.intolerancias && c.intolerancias.length) ? c.intolerancias.join(', ') : 'Ninguna';\n\n// --- Construir HTML de semanas y dias ---\nlet semHtml = '';\nfor (const sem of plan) {\n  let diasHtml = '';\n  for (const dia of (sem.dias || [])) {\n    let comidasHtml = '';\n    for (const com of (dia.comidas || [])) {\n      const ings = (com.ingredientes && com.ingredientes.length)\n        ? '<br><small style=\"color:#888\">' + com.ingredientes.slice(0,6).join(', ') + '</small>'\n        : '';\n      comidasHtml += '<tr>' +\n        '<td style=\"padding:6px 12px;border-bottom:1px solid #eee;vertical-align:top;white-space:nowrap\">' +\n        '<span style=\"background:#FB5FAB;color:white;padding:2px 8px;border-radius:10px;font-size:11px\">' + (com.tipo || '') + '</span></td>' +\n        '<td style=\"padding:6px 12px;border-bottom:1px solid #eee\"><strong>' + (com.nombre || '') + '</strong>' + ings + '</td>' +\n        '<td style=\"padding:6px 12px;border-bottom:1px solid #eee;color:#666;font-size:12px;text-align:right;white-space:nowrap\">' +\n        (com.calorias || '-') + ' kcal | P:' + (com.proteinas || 0) + 'g</td></tr>';\n    }\n    const tot = dia.totales_dia || {};\n    diasHtml += '<div style=\"margin-bottom:16px;background:white;border-radius:8px;border:1px solid #ddd;overflow:hidden\">' +\n      '<div style=\"background:#0F172A;color:white;padding:8px 14px;font-weight:bold\">' +\n      (dia.nombre_dia || 'Dia ' + dia.dia) +\n      '<span style=\"float:right;font-size:12px;font-weight:normal\">' + (tot.calorias || '?') + ' kcal</span></div>' +\n      '<table style=\"width:100%;border-collapse:collapse\">' + comidasHtml + '</table>' +\n      (tot.proteinas ? '<div style=\"padding:6px 14px;background:#fdf2f8;font-size:12px;color:#555\">P: ' + tot.proteinas + 'g | C: ' + (tot.carbohidratos || 0) + 'g | G: ' + (tot.grasas || 0) + 'g</div>' : '') +\n      '</div>';\n  }\n  semHtml += '<div style=\"margin-bottom:28px\">' +\n    '<h3 style=\"color:#0F172A;border-left:4px solid #FB5FAB;padding-left:12px;margin:0 0 14px\">Semana ' + sem.numero + '</h3>' +\n    diasHtml + '</div>';\n}\n\n// --- HTML completo del email ---\n\n  // --- Notas importantes de la nutricionista ---\n  const notasImportantesHtml =\n    '<div style=\"background:white;padding:28px 24px;border-top:1px solid #eee\">' +\n    '<h2 style=\"color:#0F172A;margin-top:0;font-size:18px;border-left:4px solid #FB5FAB;padding-left:12px\">&#128203; Notas importantes sobre la dieta</h2>' +\n    '<div style=\"display:grid;gap:12px\">' +\n\n    '<div style=\"background:#fdf2f8;border-radius:8px;padding:14px 16px\">' +\n    '<p style=\"margin:0 0 4px;font-weight:bold;color:#0F172A\">&#9749; Caf&#233; e infusiones</p>' +\n    '<p style=\"margin:0;font-size:13px;color:#444;line-height:1.6\">Puedes consumir caf&#233; solo con agua libremente, sin necesidad de especificarlo en la dieta. Tambi&#233;n puedes tomar infusiones o t&#233;, siempre que no lleven az&#250;car, miel ni otros endulzantes cal&#243;ricos.</p>' +\n    '</div>' +\n\n    '<div style=\"background:#e8f4fd;border-radius:8px;padding:14px 16px\">' +\n    '<p style=\"margin:0 0 4px;font-weight:bold;color:#0F172A\">&#128167; Hidrataci&#243;n</p>' +\n    '<p style=\"margin:0;font-size:13px;color:#444;line-height:1.6\">Procura beber al menos 2 litros de agua al d&#237;a. Una buena hidrataci&#243;n es fundamental para el metabolismo, la digesti&#243;n y el rendimiento diario.</p>' +\n    '</div>' +\n\n    '<div style=\"background:#fdf2f8;border-radius:8px;padding:14px 16px\">' +\n    '<p style=\"margin:0 0 4px;font-weight:bold;color:#0F172A\">&#127815; Consumo de fruta</p>' +\n    '<p style=\"margin:0;font-size:13px;color:#444;line-height:1.6\">Intenta consumir la fruta en la comida indicada en la dieta, ya que su distribuci&#243;n est&#225; pensada con un objetivo nutricional concreto.</p>' +\n    '</div>' +\n\n    '<div style=\"background:#e8f4fd;border-radius:8px;padding:14px 16px\">' +\n    '<p style=\"margin:0 0 4px;font-weight:bold;color:#0F172A\">&#129367; Verduras</p>' +\n    '<p style=\"margin:0;font-size:13px;color:#444;line-height:1.6\">Puedes variar las verduras seg&#250;n tus gustos personales; las que aparecen son una sugerencia. Adem&#225;s, puedes aumentar la cantidad de verduras si lo necesitas, ya que ayudan a mejorar la saciedad y aportan fibra y micronutrientes.</p>' +\n    '</div>' +\n\n    '<div style=\"background:#fdf2f8;border-radius:8px;padding:14px 16px\">' +\n    '<p style=\"margin:0 0 4px;font-weight:bold;color:#0F172A\">&#127858; Aceite de oliva</p>' +\n    '<p style=\"margin:0;font-size:13px;color:#444;line-height:1.6\">Controla la cantidad de aceite al cocinar o ali&#241;ar. Aunque es una grasa saludable, sigue aportando calor&#237;as. Una cucharadita peque&#241;a &#8776; 5 ml; una cucharada sopera &#8776; 10 ml. Usa cuchara en lugar de verter directamente de la botella.</p>' +\n    '</div>' +\n\n    '<div style=\"background:#e8f4fd;border-radius:8px;padding:14px 16px\">' +\n    '<p style=\"margin:0 0 4px;font-weight:bold;color:#0F172A\">&#128260; Cambios puntuales en la dieta</p>' +\n    '<p style=\"margin:0;font-size:13px;color:#444;line-height:1.6\">Si alg&#250;n d&#237;a deseas comer algo diferente, intenta cambiar el d&#237;a completo de la dieta en lugar de modificar solo una comida. Esto ayuda a mantener el equilibrio nutricional del plan.</p>' +\n    '</div>' +\n\n    '<div style=\"background:#fdf2f8;border-radius:8px;padding:14px 16px\">' +\n    '<p style=\"margin:0 0 4px;font-weight:bold;color:#0F172A\">&#9203; No saltarse comidas</p>' +\n    '<p style=\"margin:0;font-size:13px;color:#444;line-height:1.6\">Intenta no saltarte ninguna de las comidas indicadas. La distribuci&#243;n est&#225; pensada para mantener la energ&#237;a estable durante el d&#237;a y facilitar la adherencia al plan.</p>' +\n    '</div>' +\n\n    '<div style=\"background:#e8f4fd;border-radius:8px;padding:14px 16px\">' +\n    '<p style=\"margin:0 0 4px;font-weight:bold;color:#0F172A\">&#127838; Variar las prote&#237;nas del pan</p>' +\n    '<p style=\"margin:0;font-size:13px;color:#444;line-height:1.6\">La prote&#237;na que aparece en las rebanadas de pan integral o pan tipo Wasa se puede variar seg&#250;n tus preferencias: pavo, jam&#243;n serrano, pollo, at&#250;n u otra opci&#243;n similar.</p>' +\n    '</div>' +\n\n    '<div style=\"background:#fdf2f8;border-radius:8px;padding:14px 16px\">' +\n    '<p style=\"margin:0 0 4px;font-weight:bold;color:#0F172A\">&#127852; Edulcorantes</p>' +\n    '<p style=\"margin:0;font-size:13px;color:#444;line-height:1.6\">Puedes utilizar edulcorante al gusto, ya que no aporta calor&#237;as significativas dentro de la dieta.</p>' +\n    '</div>' +\n\n    '</div></div>';\n\nconst html = '<!DOCTYPE html><html lang=\"es\"><head><meta charset=\"UTF-8\"></head>' +\n  '<body style=\"margin:0;padding:0;font-family:Arial,sans-serif;background:#f5f5f5;color:#333\">' +\n  '<div style=\"background:linear-gradient(135deg,#0F172A,#1e293b);padding:30px 24px;text-align:center\">' +\n  '<h1 style=\"color:white;margin:0;font-size:26px\">G2Fit Nutricion</h1>' +\n  '<p style=\"color:#fce4ec;margin:8px 0 0\">Tu Plan Nutricional Personalizado</p></div>' +\n  '<div style=\"background:white;padding:28px 24px;border-bottom:3px solid #FB5FAB\">' +\n  '<h2 style=\"color:#0F172A;margin-top:0\">Hola, ' + c.nombre + '!</h2>' +\n  '<p>Tu plan de <strong>' + (plan.length * 7) + ' dias</strong> esta listo. Objetivo: <strong>' + objLabel + '</strong>.</p>' +\n  '<table style=\"width:100%;border-collapse:separate;border-spacing:6px;margin:16px 0\"><tr>' +\n  '<td style=\"background:#fdf2f8;border-radius:8px;padding:12px;text-align:center\"><div style=\"font-size:20px;font-weight:bold;color:#0F172A\">' + (obj.calorias || '-') + '</div><div style=\"font-size:11px;color:#555\">kcal/dia</div></td>' +\n  '<td style=\"background:#fdf2f8;border-radius:8px;padding:12px;text-align:center\"><div style=\"font-size:20px;font-weight:bold;color:#0F172A\">' + (obj.proteinas || '-') + 'g</div><div style=\"font-size:11px;color:#555\">Proteinas</div></td>' +\n  '<td style=\"background:#fdf2f8;border-radius:8px;padding:12px;text-align:center\"><div style=\"font-size:20px;font-weight:bold;color:#0F172A\">' + (obj.carbohidratos || '-') + 'g</div><div style=\"font-size:11px;color:#555\">Carbos</div></td>' +\n  '<td style=\"background:#fdf2f8;border-radius:8px;padding:12px;text-align:center\"><div style=\"font-size:20px;font-weight:bold;color:#0F172A\">' + (obj.grasas || '-') + 'g</div><div style=\"font-size:11px;color:#555\">Grasas</div></td>' +\n  '</tr></table>' +\n  '<div style=\"background:#FFF9E6;border-left:4px solid #FFC107;padding:10px 14px;border-radius:0 6px 6px 0;font-size:13px\">' +\n  '<strong>Datos:</strong> ' + (c.edad || '-') + ' anos, ' + (c.sexo || '-') + ', ' + (c.peso_actual || '-') + 'kg / ' + (c.altura || '-') + 'cm, IMC ' + (c.imc || '-') + '<br>' +\n  '<strong>Alergias:</strong> ' + alerStr + ' | <strong>Intolerancias:</strong> ' + intolStr + '</div></div>' +\n  notasImportantesHtml +\n  '<div style=\"padding:24px;background:#f5f5f5\">' +\n  '<h2 style=\"color:#0F172A;text-align:center;margin-bottom:20px\">Tu Plan Completo</h2>' +\n  semHtml + '</div>' +\n  '<div style=\"background:white;padding:20px 24px;border-top:2px solid #e0e0e0\">' +\n  '<h3 style=\"color:#0F172A;margin-top:0\">Recomendaciones</h3>' +\n  '<ul style=\"padding-left:20px;line-height:2\">' +\n  '<li>Bebe entre <strong>1.5 y 2.5 litros</strong> de agua al dia</li>' +\n  '<li>Mantene horarios <strong>regulares</strong> de comidas</li>' +\n  '<li>Responde este email ante cualquier duda</li></ul></div>' +\n  '<div style=\"background:#0F172A;padding:20px;text-align:center;color:#fce4ec;font-size:13px\">' +\n  '<p style=\"margin:0;color:white;font-weight:bold\">G2Fit Nutricion</p>' +\n  '<p style=\"margin:4px 0 0\">Estamos aqui para ayudarte</p></div>' +\n  '</body></html>';\n\nreturn [{\n  json: {\n    success: true,\n    html_email: html,\n    nombre_archivo: nombre_archivo,\n    dieta_id: dieta_id,\n    cliente_email: cliente_email,\n    cliente_nombre: cliente_nombre,\n    requiere_revision: $json.requiere_revision || false,\n    motivo_revision: $json.motivo_revision || ''\n  }\n}];"
+      },
+      "id": "65a4684b-42e2-415f-b7fb-05ab6d02b0c6",
+      "name": "Python - Generar PDF",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -30912,
+        8736
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond1",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b13e7e41-3ec0-4147-9797-2a4920bc9b67",
+      "name": "IF - PDF Generado OK",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -30688,
+        8736
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "dietas_generadas",
+        "filterType": "string",
+        "filterString": "=id=eq.{{ $node['Function - Preparar Datos PDF'].json.dieta_id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "pdf_url",
+              "fieldValue": "={{ $node['Function - Preparar Datos PDF'].json.ruta_output }}"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "4bd0d4e7-441a-4895-b5af-2da6bca43bb6",
+      "name": "Supabase - Guardar URL PDF",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -30480,
+        8624
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "nEeesz8yShWcFoTO",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "cond1",
+              "leftValue": "={{ $node['Function - Preparar Datos PDF'].json.requiere_revision }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3c79e75a-b9f4-4e6c-b2a1-0d3d88bb9feb",
+      "name": "IF - Requiere Revisión",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -30256,
+        8624
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const err = $input.first();\nreturn [{\n  json: {\n    tipo_log: 'error',\n    fase: 'validacion_ia',\n    nodo: 'IF - Validación OK',\n    mensaje: $json.validacion?.errores?.join('; ') || 'Validación fallida',\n    datos: {\n      validacion: $json.validacion,\n      cliente_id: $json.cliente_id,\n      nombre_cliente: $json.nombre_cliente\n    },\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "969ed6ce-0701-4bb7-afca-2256dbe42e8f",
+      "name": "Function - Log Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -31360,
+        9040
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "logs_generacion",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "tipo_log",
+              "fieldValue": "={{ $json.tipo_log }}"
+            },
+            {
+              "fieldId": "fase",
+              "fieldValue": "={{ $json.fase }}"
+            },
+            {
+              "fieldId": "nodo",
+              "fieldValue": "={{ $json.nodo }}"
+            },
+            {
+              "fieldId": "mensaje",
+              "fieldValue": "={{ $json.mensaje }}"
+            },
+            {
+              "fieldId": "datos",
+              "fieldValue": "={{ JSON.stringify($json.datos) }}"
+            }
+          ]
+        }
+      },
+      "id": "1448cfb6-da68-47b5-b6a1-c62fc1e3aeae",
+      "name": "Supabase - Guardar Log Error",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -31136,
+        9040
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "nEeesz8yShWcFoTO",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-haiku-4-5-20251001",
+          "mode": "list",
+          "cachedResultName": "claude-haiku-4-5-20251001"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.prompt }}"
+            }
+          ]
+        },
+        "options": {
+          "maxTokens": 16000,
+          "temperature": 0.3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        -32064,
+        8832
+      ],
+      "id": "5f77f6dd-6124-49ae-8dea-e382446c26c1",
+      "name": "Message a model1",
+      "credentials": {
+        "anthropicApi": {
+          "id": "bG6zRvFzvtkqH8AS",
+          "name": "formulario"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "Lydia.dietista.denia@gmail.com",
+        "subject": "=Nueva dieta para revisar: {{ $node['Python - Generar PDF'].json.cliente_nombre }} — G2Fit",
+        "message": "=<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n<meta charset=\"UTF-8\">\n<link href=\"https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap\" rel=\"stylesheet\">\n</head>\n<body style=\"margin:0;padding:0;background:#f4f4f4;font-family:'Montserrat',Arial,sans-serif;\">\n<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#f4f4f4;padding:32px 16px;\">\n  <tr><td align=\"center\">\n    <table width=\"520\" cellpadding=\"0\" cellspacing=\"0\" style=\"max-width:520px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);\">\n      <tr>\n        <td style=\"background:#0F172A;padding:24px 32px;text-align:center;\">\n          <img src=\"https://g2fit.es/wp-content/uploads/2024/06/cropped-IMG_5187-1-180x85.png\" alt=\"G2Fit\" style=\"height:50px;max-width:160px;object-fit:contain;\" />\n        </td>\n      </tr>\n      <tr>\n        <td style=\"background:#FB5FAB;padding:10px 32px;text-align:center;\">\n          <p style=\"margin:0;color:#fff;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;\">Panel Nutricionista</p>\n        </td>\n      </tr>\n      <tr>\n        <td style=\"padding:36px 36px 28px;\">\n          <h2 style=\"margin:0 0 16px;color:#0F172A;font-size:20px;font-weight:700;\">Nueva dieta pendiente de revisión</h2>\n          <p style=\"margin:0 0 20px;color:#454F5E;font-size:14px;line-height:1.7;\">Se ha generado un nuevo plan nutricional que requiere tu revisión antes de enviarlo al cliente.</p>\n          <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#f8fafc;border-radius:10px;margin-bottom:24px;\">\n            <tr>\n              <td style=\"padding:18px 20px;\">\n                <table cellpadding=\"0\" cellspacing=\"0\" width=\"100%\">\n                  <tr><td style=\"color:#64748b;font-size:12px;padding-bottom:4px;text-transform:uppercase;letter-spacing:1px;\">Cliente</td></tr>\n                  <tr><td style=\"color:#0F172A;font-size:17px;font-weight:700;padding-bottom:14px;\">{{ $node['Python - Generar PDF'].json.cliente_nombre }}</td></tr>\n                  <tr><td style=\"color:#64748b;font-size:12px;padding-bottom:4px;text-transform:uppercase;letter-spacing:1px;\">Email</td></tr>\n                  <tr><td style=\"color:#454F5E;font-size:14px;padding-bottom:14px;\">{{ $node['Python - Generar PDF'].json.cliente_email }}</td></tr>\n                  <tr><td style=\"color:#64748b;font-size:12px;padding-bottom:4px;text-transform:uppercase;letter-spacing:1px;\">Motivo</td></tr>\n                  <tr><td style=\"color:#FB5FAB;font-size:14px;font-weight:600;\">{{ $node['Python - Generar PDF'].json.motivo_revision || 'Revisión estándar' }}</td></tr>\n                </table>\n              </td>\n            </tr>\n          </table>\n          <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">\n            <tr>\n              <td align=\"center\">\n                <a href=\"https://darkcyan-mandrill-837015.hostingersite.com/\" style=\"display:inline-block;background:#FB5FAB;color:#ffffff;font-family:'Montserrat',Arial,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:8px;\">\n                  Revisar dieta →\n                </a>\n              </td>\n            </tr>\n          </table>\n        </td>\n      </tr>\n      <tr>\n        <td style=\"background:#0F172A;padding:18px 32px;text-align:center;\">\n          <p style=\"margin:0;color:#FB5FAB;font-size:12px;font-weight:700;letter-spacing:1px;\">G2FIT NUTRICIÓN</p>\n        </td>\n      </tr>\n    </table>\n  </td></tr>\n</table>\n</body>\n</html>",
+        "options": {}
+      },
+      "id": "85187fab-bd31-40fe-8cfa-cf2573097ce4",
+      "name": "Gmail - Alerta Revisión",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        -30032,
+        8528
+      ],
+      "webhookId": "9e297f75-9d41-467a-bb60-9b8dda4d8b1f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "RZGUSaOkiTerUP8u",
+          "name": "G2fit dietas"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $node['Python - Generar PDF'].json.cliente_email }}",
+        "subject": "={{ $node['Python - Generar PDF'].json.cliente_nombre }}, ¡tu plan nutricional está listo! — G2Fit Nutrición",
+        "message": "={{ $node['Python - Generar PDF'].json.html_email }}",
+        "options": {}
+      },
+      "id": "70934de7-7502-4a98-b3ff-8fc048380516",
+      "name": "Gmail - Dieta Lista",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        -30032,
+        8736
+      ],
+      "webhookId": "43f9140c-f665-4329-858f-c99799dd740d",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "RZGUSaOkiTerUP8u",
+          "name": "G2fit dietas"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "Lydia.dietista.denia@gmail.com",
+        "subject": "=🚨 Error en workflow G2Fit: {{ $node['Function - Log Error'].json.fase }}",
+        "message": "=<!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body style=\"font-family:Arial,sans-serif;max-width:680px;margin:0 auto;background:#f5f5f5;color:#333\"><div style=\"background:#B71C1C;padding:20px 24px\"><h1 style=\"color:white;margin:0;font-size:18px\">🚨 G2Fit — Error en el Workflow</h1></div><div style=\"background:white;padding:28px 24px\"><p>Se ha producido un error que requiere tu atencion:</p><table style=\"width:100%;border-collapse:collapse;border:1px solid #e0e0e0\"><tr><td style=\"padding:10px 14px;background:#f9f9f9;font-weight:bold;width:35%;border-bottom:1px solid #eee\">Fase</td><td style=\"padding:10px 14px;border-bottom:1px solid #eee\">{{ $node['Function - Log Error'].json.fase }}</td></tr><tr><td style=\"padding:10px 14px;background:#f9f9f9;font-weight:bold;border-bottom:1px solid #eee\">Mensaje</td><td style=\"padding:10px 14px;border-bottom:1px solid #eee;color:#B71C1C\">{{ $node['Function - Log Error'].json.mensaje }}</td></tr><tr><td style=\"padding:10px 14px;background:#f9f9f9;font-weight:bold;border-bottom:1px solid #eee\">Cliente</td><td style=\"padding:10px 14px;border-bottom:1px solid #eee\">{{ $node['Function - Log Error'].json.datos?.nombre_cliente || \"Desconocido\" }}</td></tr><tr><td style=\"padding:10px 14px;background:#f9f9f9;font-weight:bold\">Timestamp</td><td style=\"padding:10px 14px;font-size:12px\">{{ $node['Function - Log Error'].json.timestamp }}</td></tr></table><p style=\"margin-top:16px\"><a href=\"https://n8n.srv964210.hstgr.cloud\" style=\"color:#1B5E20\">Ver en el dashboard de n8n</a></p></div><div style=\"background:#B71C1C;padding:14px;text-align:center;color:#FFCDD2;font-size:12px\">G2Fit Nutricion</div></body></html>",
+        "options": {}
+      },
+      "id": "271244c0-ff4b-4b25-a244-e35e2d4b0178",
+      "name": "Gmail - Alerta Error",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        -30912,
+        9040
+      ],
+      "webhookId": "738eb37a-cbef-46c7-922b-56dcf62041eb",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "RZGUSaOkiTerUP8u",
+          "name": "G2fit dietas"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== PREPARAR DATOS COMPLETOS PARA CONSTRUIR PROMPT =====\n\nconst stripeData = $('Function - Reconstruir Datos tras Pago').first().json;\nconst recetas = $input.all();\nconst tipoDieta = (stripeData.cliente.tipo_dieta || 'no').toLowerCase();\n\n// Filtrar recetas incompatibles con el tipo de dieta del cliente\n// Primero usa las columnas booleanas (apto_vegano / apto_vegetariano);\n// si no están definidas, hace fallback por nombre de ingredientes.\nconst PROHIBIDOS_VEGANO = ['pollo','pavo','ternera','cerdo','cordero','conejo','jamon','jamón','bacon','salchicha','embutido','carne','salmon','salmón','merluza','atun','atún','bacalao','sardina','trucha','dorada','lubina','pescado','gamba','langostino','mejillon','mejillón','almeja','calamar','pulpo','marisco','huevo','leche','yogur','queso','mantequilla','nata','kefir','kéfir','requezon','requesón','miel'];\nconst PROHIBIDOS_VEGETARIANO = ['pollo','pavo','ternera','cerdo','cordero','conejo','jamon','jamón','bacon','salchicha','embutido','carne','salmon','salmón','merluza','atun','atún','bacalao','sardina','trucha','dorada','lubina','pescado','gamba','langostino','mejillon','mejillón','almeja','calamar','pulpo','marisco'];\n\nfunction recetaCompatible(r, td) {\n  if (td === 'no') return true;\n  // Usar columnas booleanas si están definidas en Supabase\n  if (td === 'vegana') {\n    if (r.apto_vegano === true) return true;\n    if (r.apto_vegano === false) return false;\n  }\n  if (td === 'vegetariana') {\n    if (r.apto_vegetariano === true) return true;\n    if (r.apto_vegetariano === false) return false;\n  }\n  // Fallback: analizar ingredientes por nombre\n  const prohibidos = td === 'vegana' ? PROHIBIDOS_VEGANO : PROHIBIDOS_VEGETARIANO;\n  const textoReceta = (r.nombre + ' ' + (r.ingredientes || []).map(i => typeof i === 'string' ? i : (i.nombre || '')).join(' ')).toLowerCase();\n  return !prohibidos.some(p => textoReceta.includes(p));\n}\n\nconst recetasCompatibles = recetas.map(r => r.json).filter(r => recetaCompatible(r, tipoDieta));\n\nreturn [{\n  json: {\n    cliente_id: stripeData.cliente_id,\n    cliente: stripeData.cliente,\n    calculos: stripeData.calculos,\n    recetas_disponibles: recetasCompatibles,\n    metadata: stripeData.metadata,\n    es_renovacion: stripeData.es_renovacion || false,\n    recetas_a_no_repetir: stripeData.recetas_a_no_repetir || []\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -32368,
+        8832
+      ],
+      "id": "ed1041e9-e769-49a1-addc-fd09f821fdd6",
+      "name": "Preparar Datos Completos"
+    },
+    {
+      "parameters": {
+        "events": [
+          "checkout.session.completed"
+        ]
+      },
+      "id": "7056ec2d-9dd7-4768-8403-1889b88660d5",
+      "name": "Stripe Trigger - Pago Completado",
+      "type": "n8n-nodes-base.stripeTrigger",
+      "typeVersion": 1,
+      "position": [
+        -33056,
+        8848
+      ],
+      "webhookId": "stripe-payment-confirmed",
+      "credentials": {
+        "stripeApi": {
+          "id": "n9rb0Zl6PitOyyxS",
+          "name": "Stripe account test"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://blardvkldwwbhgdmsxhd.supabase.co/rest/v1/clientes?id=eq.{{ $json.data.object.client_reference_id }}&select=*",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "id": "b384d3a1-f6e2-497b-bd56-146220a2ba36",
+      "name": "Supabase - Obtener Cliente Pagado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -32880,
+        8848
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "nEeesz8yShWcFoTO",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== RECONSTRUIR DATOS TRAS PAGO (Reglas Nutricionista Experto) =====\nconst inputData = $input.first().json;\nconst c = inputData;\n\nif (!c || !c.id) {\n  throw new Error('No se encontró el cliente en Supabase. Datos: ' + JSON.stringify(inputData));\n}\n\n// ─── Detección de renovación ─────────────────────────────────────────────────\nconst stripeEvent = $('Stripe Trigger - Pago Completado').first().json;\nconst stripeMetadata = stripeEvent?.data?.object?.metadata || {};\nconst esRenovacion = stripeMetadata.tipo === 'renovacion';\n\n// ─── 1. TMB: Mifflin-St Jeor (más precisa) ───────────────────────────────────\nconst tmb = c.sexo === 'masculino'\n  ? (10 * c.peso_actual) + (6.25 * c.altura) - (5 * c.edad) + 5\n  : (10 * c.peso_actual) + (6.25 * c.altura) - (5 * c.edad) - 161;\n\n// ─── 2. TDEE ─────────────────────────────────────────────────────────────────\nconst factoresActividad = {\n  sedentario:      1.2,\n  ligero:          1.375,\n  moderado:        1.55,\n  activo:          1.725,\n  muy_activo:      1.9\n};\nconst tdee = tmb * (factoresActividad[c.nivel_actividad] || 1.375);\n\n// ─── 3. Calorías objetivo por objetivo ───────────────────────────────────────\nconst ajustesCalorias = {\n  perder_peso: 0.80,   // -20% déficit\n  ganar_masa:  1.12,   // +12% superávit\n  definicion:  0.88,   // -12% déficit leve\n  mantener:    1.00\n};\nconst cal_objetivo = Math.round(tdee * (ajustesCalorias[c.objetivo] || 1.0));\n\n// ─── 4. Proteínas (reglas nutricionista) ─────────────────────────────────────\n// Base por objetivo (g/kg)\nconst baseProt = {\n  perder_peso: 2.2,   // preservar músculo en déficit\n  ganar_masa:  1.9,   // construcción muscular\n  definicion:  2.4,   // máxima preservación\n  mantener:    1.8\n};\nlet factorProt = baseProt[c.objetivo] || 1.8;\n// Ajuste por edad (anti-sarcopenia)\nif (c.edad >= 60) factorProt += 0.4;\nelse if (c.edad >= 40) factorProt += 0.2;\nconst proteinas_g = Math.round(c.peso_actual * factorProt);\n\n// ─── 5. Grasas (reglas por sexo) ─────────────────────────────────────────────\n// Mujeres: 1.0 g/kg (NUNCA <0.9 - salud hormonal)\n// Hombres: 0.9 g/kg (NUNCA <0.7)\nconst factorGrasa = c.sexo === 'femenino' ? 1.0 : 0.9;\nconst grasas_g_calc = Math.round(c.peso_actual * factorGrasa);\nconst grasas_min = c.sexo === 'femenino'\n  ? Math.round(c.peso_actual * 0.9)\n  : Math.round(c.peso_actual * 0.7);\nconst grasas_g = Math.max(grasas_g_calc, grasas_min);\n\n// ─── 6. Carbohidratos (variable de ajuste) ───────────────────────────────────\nconst cal_prot  = proteinas_g * 4;\nconst cal_grasa = grasas_g * 9;\nconst carbos_g  = Math.max(0, Math.round((cal_objetivo - cal_prot - cal_grasa) / 4));\n\n// ─── 7. Distribución por comida ──────────────────────────────────────────────\nconst numComidas = c.comidas_diarias || 5;\n// Usar nombres reales de comidas seleccionadas por el cliente\nconst comidasActuales = (c.comidas_seleccionadas && c.comidas_seleccionadas.length > 0)\n  ? c.comidas_seleccionadas\n  : numComidas <= 3 ? ['Desayuno', 'Comida', 'Cena']\n  : numComidas === 4 ? ['Desayuno', 'Almuerzo', 'Comida', 'Cena']\n  : ['Desayuno', 'Almuerzo', 'Comida', 'Merienda', 'Cena'];\n\n// Porcentaje calórico por tipo de comida\nconst PCT_COMIDA = {\n  'desayuno': 0.25, 'almuerzo': 0.15, 'comida': 0.35,\n  'merienda': 0.15, 'cena': 0.25\n};\nconst rawPcts = {};\nfor (const nombre of comidasActuales) {\n  const key = nombre.toLowerCase();\n  rawPcts[nombre] = PCT_COMIDA[key] || (key.includes('snack') ? 0.15 : 0.20);\n}\nconst totalPct = Object.values(rawPcts).reduce((a, b) => a + b, 0);\nconst patronComidas = {};\nfor (const [n, p] of Object.entries(rawPcts)) {\n  patronComidas[n] = p / totalPct;\n}\nconst distribucionComidas = {};\nconst protPorComida = Math.round(proteinas_g / Object.keys(patronComidas).length);\nfor (const [nombre, pct] of Object.entries(patronComidas)) {\n  const cal = Math.round(cal_objetivo * pct);\n  const grasa = Math.round(grasas_g * pct);\n  const carb = Math.max(0, Math.round((cal - protPorComida * 4 - grasa * 9) / 4));\n  distribucionComidas[nombre] = { calorias: cal, proteinas: protPorComida, grasas: grasa, carbohidratos: carb };\n}\n\n// ─── 8. Notas por edad y sexo ────────────────────────────────────────────────\nconst notasEspeciales = [];\nif (c.edad >= 60) {\n  notasEspeciales.push('Proteína aumentada para prevenir sarcopenia (pérdida muscular)');\n  notasEspeciales.push('Priorizar alimentos ricos en calcio y vitamina D');\n  notasEspeciales.push('Texturas más blandas si es necesario');\n} else if (c.edad >= 50) {\n  notasEspeciales.push('Proteína incrementada para preservar masa muscular');\n  notasEspeciales.push('Aumentar omega-3 para salud cardiovascular');\n  notasEspeciales.push('Control de sodio (<2300mg/día)');\n} else if (c.edad >= 40) {\n  notasEspeciales.push('Ligero incremento de proteína por cambios metabólicos');\n  notasEspeciales.push('Incluir omega-3 regularmente');\n  notasEspeciales.push('Controlar carbohidratos refinados');\n}\n\nif (c.sexo === 'femenino') {\n  notasEspeciales.push('Grasas mantenidas altas para salud hormonal (nunca <0.9g/kg)');\n  notasEspeciales.push('Asegurar hierro: 18mg/día (carnes rojas, legumbres, espinacas)');\n  notasEspeciales.push('Calcio: 1000-1200mg/día');\n  if (c.edad >= 50) notasEspeciales.push('Post-menopausia: considerar fitoestrógenos (soja, lino)');\n} else {\n  notasEspeciales.push('Zinc: 11mg/día (producción testosterona: carnes, semillas de calabaza)');\n}\n\n// ─── 9. IMC ──────────────────────────────────────────────────────────────────\nconst imc = c.imc || parseFloat((c.peso_actual / Math.pow(c.altura / 100, 2)).toFixed(1));\nconst imc_cat = imc < 18.5 ? 'Bajo peso' : imc < 25 ? 'Normal' : imc < 30 ? 'Sobrepeso' : 'Obesidad';\n\n// ─── 10. Alertas ─────────────────────────────────────────────────────────────\nconst alertas = [];\nif (cal_objetivo < 1200) alertas.push('ALERTA: Calorías muy bajas (<1200 kcal). Requiere supervisión.');\nif (imc < 17 || imc > 40) alertas.push('ALERTA: IMC extremo. Requiere supervisión médica.');\nif (carbos_g < 50) alertas.push('ADVERTENCIA: Carbohidratos muy bajos (<50g). Vigilar energía.');\n\nconst rango = (v, p = 0.05) => ({ min: Math.round(v * (1 - p)), max: Math.round(v * (1 + p)) });\n\nreturn [{\n  json: {\n    cliente_id: c.id,\n    cliente: {\n      id: c.id,\n      nombre: c.nombre,\n      apellidos: c.apellidos || '',\n      email: c.email,\n      telefono: c.telefono || '',\n      edad: c.edad,\n      sexo: c.sexo,\n      peso_actual: c.peso_actual,\n      altura: c.altura,\n      peso_objetivo: c.peso_objetivo || null,\n      objetivo: c.objetivo,\n      tiempo_objetivo: c.tiempo_objetivo || '',\n      nivel_actividad: c.nivel_actividad,\n      comidas_diarias: numComidas,\n      comidas_seleccionadas: c.comidas_seleccionadas || [],\n      alergias: c.alergias || [],\n      intolerancias: c.intolerancias || [],\n      patologias: c.patologias || [],\n      medicacion: c.medicacion || '',\n      // Preferencias (nuevos campos)\n      dieta_anterior: c.dieta_anterior || '',\n      alimentos_a_evitar: c.alimentos_a_evitar || '',\n      datos_interes: c.datos_interes || '',\n      consume_alcohol: c.consume_alcohol || '',\n      pica_entre_comidas: c.pica_entre_comidas || '',\n      apetencias: c.apetencias || [],\n      consume_lacteos: c.consume_lacteos,\n      proteinas_preferidas: c.proteinas_preferidas || [],\n      notas_proteinas: c.notas_proteinas || '',\n      consume_verduras: c.consume_verduras || '',\n      carbohidratos_preferidos: c.carbohidratos_preferidos || [],\n      frutos_secos_preferidos: c.frutos_secos_preferidos || '',\n      contorno_abdominal_1: c.contorno_abdominal_1 || null,\n      contorno_abdominal_2: c.contorno_abdominal_2 || null,\n      contorno_abdominal_3: c.contorno_abdominal_3 || null,\n      consume_bebidas_azucaradas: c.consume_bebidas_azucaradas || '',\n      bebidas_vegetales_preferidas: c.bebidas_vegetales_preferidas || [],\n      tipo_dieta:                   c.tipo_dieta || 'no',\n      imc,\n      imc_categoria: imc_cat\n    },\n    calculos: {\n      tmb: Math.round(tmb),\n      tdee: Math.round(tdee),\n      imc,\n      imc_categoria: imc_cat,\n      objetivo: {\n        calorias: cal_objetivo,\n        proteinas_g: proteinas_g,\n        carbohidratos_g: carbos_g,\n        grasas_g: grasas_g\n      },\n      distribucion_por_comida: distribucionComidas,\n      rangos: {\n        calorias: rango(cal_objetivo),\n        proteinas: rango(proteinas_g),\n        carbohidratos: rango(carbos_g),\n        grasas: rango(grasas_g)\n      },\n      notas_especiales: notasEspeciales,\n      alertas\n    },\n    metadata: {\n      id_solicitud: 'PAY-' + Date.now(),\n      timestamp: new Date().toISOString()\n    },\n    es_renovacion: esRenovacion,\n    recetas_a_no_repetir: esRenovacion ? await (async () => {\n      // Obtener recetas del plan anterior para no repetirlas\n      // ⚠️ REEMPLAZA con tu Supabase Anon Key (Project Settings > API > anon public)\n      const SUPABASE_URL = 'https://blardvkldwwbhgdmsxhd.supabase.co';\n      const SUPABASE_KEY = 'REEMPLAZAR_CON_TU_SUPABASE_ANON_KEY';\n      try {\n        const res = await this.helpers.httpRequest({\n          method: 'GET',\n          url: `${SUPABASE_URL}/rest/v1/dietas_generadas?cliente_id=eq.${c.id}&estado=eq.enviada&select=plan_completo&order=created_at.desc&limit=1`,\n          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }\n        });\n        const dieta = Array.isArray(res) ? res[0] : res;\n        if (!dieta || !dieta.plan_completo) return [];\n        const plan = typeof dieta.plan_completo === 'string' ? JSON.parse(dieta.plan_completo) : dieta.plan_completo;\n        const nombres = [];\n        for (const sem of (plan.semanas || [])) {\n          for (const dia of (sem.dias || [])) {\n            for (const comida of (dia.comidas || [])) {\n              if (comida.nombre) nombres.push(comida.nombre);\n            }\n          }\n        }\n        return [...new Set(nombres)];\n      } catch(e) { return []; }\n    })() : []\n  }\n}];\n"
+      },
+      "id": "0ead0526-6e40-4173-8046-60e571d77111",
+      "name": "Function - Reconstruir Datos tras Pago",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -32704,
+        8848
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "dietas_generadas",
+        "filterType": "string",
+        "filterString": "=id=eq.{{ $node['Function - Preparar Datos PDF'].json.dieta_id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "estado",
+              "fieldValue": "enviada"
+            },
+            {
+              "fieldId": "fecha_envio",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "6a304f44-1f26-4d75-b8a3-9a8713e4b029",
+      "name": "Supabase - Marcar Dieta Enviada",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -29872,
+        8736
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "nEeesz8yShWcFoTO",
+          "name": "Supabase account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Supabase - Consultar Recetas": {
+      "main": [
+        [
+          {
+            "node": "Preparar Datos Completos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Function - Construir Prompt Claude": {
+      "main": [
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Function - Validar Respuesta IA": {
+      "main": [
+        [
+          {
+            "node": "IF - Validación OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Validación OK": {
+      "main": [
+        [
+          {
+            "node": "Supabase - Guardar Dieta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Function - Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase - Guardar Dieta": {
+      "main": [
+        [
+          {
+            "node": "Function - Preparar Datos PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - PDF Generado OK": {
+      "main": [
+        [
+          {
+            "node": "Supabase - Guardar URL PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Function - Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase - Guardar URL PDF": {
+      "main": [
+        [
+          {
+            "node": "IF - Requiere Revisión",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Requiere Revisión": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Alerta Revisión",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gmail - Dieta Lista",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Function - Log Error": {
+      "main": [
+        [
+          {
+            "node": "Supabase - Guardar Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase - Guardar Log Error": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Alerta Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "Function - Validar Respuesta IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Function - Preparar Datos PDF": {
+      "main": [
+        [
+          {
+            "node": "Python - Generar PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Python - Generar PDF": {
+      "main": [
+        [
+          {
+            "node": "IF - PDF Generado OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail - Dieta Lista": {
+      "main": [
+        [
+          {
+            "node": "Supabase - Marcar Dieta Enviada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Datos Completos": {
+      "main": [
+        [
+          {
+            "node": "Function - Construir Prompt Claude",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stripe Trigger - Pago Completado": {
+      "main": [
+        [
+          {
+            "node": "Supabase - Obtener Cliente Pagado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase - Obtener Cliente Pagado": {
+      "main": [
+        [
+          {
+            "node": "Function - Reconstruir Datos tras Pago",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Function - Reconstruir Datos tras Pago": {
+      "main": [
+        [
+          {
+            "node": "Supabase - Consultar Recetas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "97e9d20e-763d-4935-a0e6-c375f4ae694c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "589208084f93e2d99b2f35ec21d5d12f9965377a406958ac814e644256241513"
+  },
+  "id": "pcYbvS7uaDFptDE1",
+  "tags": [
+    {
+      "updatedAt": "2026-02-25T17:52:05.434Z",
+      "createdAt": "2026-02-25T17:52:05.434Z",
+      "id": "Fc5BQxcFqw01WjoB",
+      "name": "G2Fit"
+    },
+    {
+      "updatedAt": "2026-02-25T17:52:05.439Z",
+      "createdAt": "2026-02-25T17:52:05.439Z",
+      "id": "NgnB3NbshGDtTyH6",
+      "name": "Producción"
+    },
+    {
+      "updatedAt": "2026-02-25T17:52:05.449Z",
+      "createdAt": "2026-02-25T17:52:05.449Z",
+      "id": "wPURHWewhdDCdVEx",
+      "name": "Nutrición"
+    }
+  ]
+}

@@ -1,0 +1,3685 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>G2FIT Nutrición — Gestión</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --pink: #FB5FAB;
+      --pink-dark: #d63c8e;
+      --pink-glow: rgba(251, 95, 171, 0.25);
+      --bg: #0F172A;
+      --surface: #1E293B;
+      --surface2: #162240;
+      --border: rgba(251, 95, 171, 0.15);
+      --text: #F1F5F9;
+      --muted: #64748B;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 20% 0%, rgba(251, 95, 171, 0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(251, 95, 171, 0.05) 0%, transparent 60%);
+    }
+
+    /* NAV */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 32px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(10, 15, 13, 0.8);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--pink) 0%, var(--pink-dark) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .logo-text {
+      font-weight: 800;
+      font-size: 18px;
+      letter-spacing: -0.5px;
+    }
+
+    .logo-text span {
+      color: var(--pink);
+    }
+
+    .config-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-family: inherit;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .config-btn:hover {
+      border-color: var(--pink);
+      color: var(--pink);
+    }
+
+    /* MAIN LAYOUT */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    /* CONFIG BANNER */
+    #config-banner {
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 12px;
+      padding: 14px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+    }
+
+    #config-banner.hidden {
+      display: none;
+    }
+
+    #config-banner .icon {
+      font-size: 18px;
+    }
+
+    /* CONFIG MODAL */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      width: 520px;
+      max-width: 90vw;
+      transform: translateY(20px);
+      transition: transform 0.2s;
+    }
+
+    .modal-overlay.open .modal {
+      transform: translateY(0);
+    }
+
+    .modal h3 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .modal p {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+
+    .modal-footer {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      margin-top: 24px;
+    }
+
+    /* TABS */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 4px;
+      width: fit-content;
+      margin-bottom: 32px;
+    }
+
+    .tab {
+      padding: 10px 20px;
+      border-radius: 9px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+      color: var(--muted);
+      border: none;
+      background: none;
+      font-family: inherit;
+    }
+
+    .tab.active {
+      background: var(--pink);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .tab:not(.active):hover {
+      color: var(--text);
+    }
+
+    /* STATS BAR */
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      transition: border-color 0.2s;
+    }
+
+    .stat-card:hover {
+      border-color: var(--pink);
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--pink);
+      margin-top: 4px;
+    }
+
+    /* PANEL CONTENT */
+    .panel {
+      display: none;
+    }
+
+    .panel.active {
+      display: block;
+    }
+
+    /* FORM */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+    }
+
+    .card h3 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .form-grid.cols3 {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    .form-grid.cols-full {
+      grid-column: 1/-1;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field.col-full {
+      grid-column: 1/-1;
+    }
+
+    label {
+      font-size: 13px;
+      font-weight: 500;
+      color: #9ca3af;
+    }
+
+    input,
+    select,
+    textarea {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--pink);
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+      color: var(--muted);
+    }
+
+    select option {
+      background: var(--bg);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    /* INGREDIENTES BUILDER */
+    .ingredients-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .ingredient-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .ingredient-row input {
+      flex: 1;
+    }
+
+    .ingredient-row button {
+      width: 34px;
+      height: 34px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .ingredient-row button:hover {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    .add-ingredient {
+      background: none;
+      border: 1px dashed var(--border);
+      color: var(--muted);
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: inherit;
+      transition: all 0.2s;
+      width: fit-content;
+    }
+
+    .add-ingredient:hover {
+      border-color: var(--pink);
+      color: var(--pink);
+    }
+
+    /* TAGS INPUT */
+    .tags-input-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      min-height: 42px;
+      cursor: text;
+    }
+
+    .tags-input-wrap:focus-within {
+      border-color: var(--pink);
+    }
+
+    .tag-chip {
+      background: rgba(251, 95, 171, 0.15);
+      color: var(--pink);
+      border: 1px solid rgba(251, 95, 171, 0.3);
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .tag-chip button {
+      background: none;
+      border: none;
+      color: var(--pink);
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .tags-input-wrap input {
+      flex: 1;
+      background: none;
+      border: none;
+      padding: 0;
+      min-width: 80px;
+      font-size: 14px;
+    }
+
+    .tags-input-wrap input:focus {
+      border: none;
+      outline: none;
+    }
+
+    /* SUBMIT */
+    .form-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+      justify-content: flex-end;
+    }
+
+    /* BUTTONS */
+    .btn {
+      padding: 11px 22px;
+      border-radius: 9px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      border: none;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: var(--pink);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: #d63c8e;
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--pink);
+    }
+
+    .btn-ghost {
+      background: none;
+      color: var(--muted);
+      border: none;
+    }
+
+    .btn-ghost:hover {
+      color: var(--text);
+    }
+
+    /* SPINNER */
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* TOAST */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    .toast {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: slideIn 0.3s ease;
+      max-width: 360px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .toast.success {
+      border-color: rgba(251, 95, 171, 0.4);
+    }
+
+    .toast.error {
+      border-color: rgba(239, 68, 68, 0.4);
+    }
+
+    .toast.success .toast-icon {
+      color: var(--pink);
+    }
+
+    .toast.error .toast-icon {
+      color: var(--red);
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(30px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    /* CSV PANEL */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 16px;
+      padding: 60px 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--surface);
+      margin-bottom: 24px;
+    }
+
+    .drop-zone.dragover {
+      border-color: var(--pink);
+      background: rgba(251, 95, 171, 0.05);
+    }
+
+    .drop-zone .drop-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .drop-zone h3 {
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    .drop-zone p {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .drop-zone input[type=file] {
+      display: none;
+    }
+
+    /* PREVIEW TABLE */
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .table-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .table-header h3 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .badge {
+      background: rgba(251, 95, 171, 0.15);
+      color: var(--pink);
+      border: 1px solid rgba(251, 95, 171, 0.3);
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      text-align: left;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 500;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid rgba(251, 95, 171, 0.06);
+      transition: background 0.15s;
+    }
+
+    tbody tr:last-child {
+      border: none;
+    }
+
+    tbody tr:hover {
+      background: rgba(251, 95, 171, 0.04);
+    }
+
+    tbody td {
+      padding: 12px 16px;
+      font-size: 14px;
+    }
+
+    .cat-badge {
+      display: inline-flex;
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .cat-desayuno {
+      background: rgba(245, 158, 11, 0.15);
+      color: #f59e0b;
+    }
+
+    .cat-comida {
+      background: rgba(251, 95, 171, 0.15);
+      color: var(--pink);
+    }
+
+    .cat-cena {
+      background: rgba(99, 102, 241, 0.15);
+      color: #818cf8;
+    }
+
+    .cat-snack {
+      background: rgba(236, 72, 153, 0.15);
+      color: #f472b6;
+    }
+
+    .cat-merienda {
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+    }
+
+    .status-ok {
+      color: var(--pink);
+      font-size: 12px;
+    }
+
+    .status-err {
+      color: var(--red);
+      font-size: 12px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+
+    .empty-state .empty-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    /* SEARCH */
+    .search-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+
+    .search-bar input {
+      flex: 1;
+    }
+
+    .filter-select {
+      width: 160px;
+    }
+
+    /* Progress bar */
+    .progress-wrap {
+      margin: 16px 0;
+    }
+
+    .progress-bar {
+      height: 8px;
+      background: var(--surface2);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--pink);
+      border-radius: 4px;
+      transition: width 0.3s;
+      width: 0;
+    }
+
+    .progress-label {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    /* SEPARATOR */
+    .section-divider {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin: 24px 0;
+    }
+
+    .section-divider hr {
+      flex: 1;
+      border: none;
+      border-top: 1px solid var(--border);
+    }
+
+    .section-divider span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    /* RESPONSIVE */
+
+    /* Tablet (≤900px) */
+    @media (max-width: 900px) {
+      .stats-bar {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      /* Override inline 800px / 860px modal widths */
+      #dieta-modal .modal,
+      #cliente-modal .modal {
+        width: calc(100vw - 32px) !important;
+        max-width: calc(100vw - 32px) !important;
+      }
+    }
+
+    /* Mobile (≤768px) */
+    @media (max-width: 768px) {
+      nav {
+        padding: 10px 16px;
+        gap: 8px;
+      }
+
+      .logo-text {
+        font-size: 15px;
+      }
+
+      .config-btn span:not(:first-child) {
+        display: none;
+      }
+
+      .container {
+        padding: 16px 12px;
+      }
+
+      /* Stats */
+      .stats-bar {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+
+      .stat-value {
+        font-size: 22px;
+      }
+
+      /* Tabs: scrollable row */
+      .tabs {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        flex-wrap: nowrap;
+      }
+
+      .tabs::-webkit-scrollbar {
+        display: none;
+      }
+
+      .tab {
+        white-space: nowrap;
+        padding: 8px 14px;
+        font-size: 13px;
+      }
+
+      /* Forms */
+      .form-grid,
+      .form-grid.cols3 {
+        grid-template-columns: 1fr;
+      }
+
+      .card {
+        padding: 18px 14px;
+      }
+
+      /* Ingredient rows: stack name above quantity+unit on very small screens */
+      .ingredient-row {
+        flex-wrap: wrap;
+      }
+
+      .ingredient-row input:first-child {
+        min-width: 100%;
+      }
+
+      /* Search bars */
+      .search-bar {
+        flex-wrap: wrap;
+      }
+
+      .search-bar input {
+        min-width: 0;
+      }
+
+      .filter-select {
+        width: 100% !important;
+      }
+
+      /* Tables: horizontal scroll */
+      .table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .table-wrap table {
+        min-width: 620px;
+      }
+
+      .table-header {
+        padding: 14px 16px;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      /* Form actions */
+      .form-actions {
+        flex-direction: column;
+      }
+
+      .form-actions .btn {
+        width: 100%;
+        justify-content: center;
+      }
+
+      /* Buttons touch-friendly */
+      .btn {
+        min-height: 42px;
+      }
+
+      /* Toasts full-width */
+      #toast-container {
+        left: 12px;
+        right: 12px;
+        bottom: 16px;
+        align-items: stretch;
+      }
+
+      .toast {
+        max-width: 100%;
+      }
+
+      /* Drop zone */
+      .drop-zone {
+        padding: 36px 20px;
+      }
+
+      /* Config banner */
+      #config-banner {
+        flex-wrap: wrap;
+        font-size: 13px;
+      }
+
+      /* MODALS: full-width, scrollable */
+      .modal-overlay {
+        align-items: flex-end;
+        padding: 0;
+      }
+
+      .modal,
+      #dieta-modal .modal,
+      #cliente-modal .modal {
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: 92vh !important;
+        border-radius: 16px 16px 0 0;
+        padding: 20px 16px;
+        overflow-y: auto;
+        transform: translateY(40px);
+      }
+
+      .modal-overlay.open .modal {
+        transform: translateY(0);
+      }
+
+      .modal-footer {
+        flex-direction: column;
+      }
+
+      .modal-footer .btn {
+        width: 100%;
+        justify-content: center;
+      }
+
+      /* Dieta modal: grids (inline styles override) */
+      #dm-cliente,
+      #cm-personal,
+      #cm-preferencias {
+        grid-template-columns: 1fr !important;
+      }
+
+      #dm-macros,
+      #cm-medidas {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+
+      /* Cliente modal tabs */
+      #cliente-modal [style*="width:fit-content"] {
+        width: 100% !important;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* Seguimiento: 5-col input grid → 2 cols */
+      #cm-panel-seguimiento [style*="grid-template-columns:repeat(5,1fr)"] {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+
+      /* Charts: 2-col → 1 col */
+      #cm-panel-seguimiento [style*="grid-template-columns:1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* DM action buttons already flex-wrap, ensure full width */
+      #dm-actions {
+        flex-direction: column;
+      }
+
+      #dm-actions .btn {
+        flex: none !important;
+        width: 100%;
+        justify-content: center;
+      }
+    }
+
+    /* Extra small (≤480px) */
+    @media (max-width: 480px) {
+      .stats-bar {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .stat-card {
+        padding: 12px 14px;
+      }
+
+      .stat-value {
+        font-size: 20px;
+      }
+
+      .form-grid.cols3 {
+        grid-template-columns: 1fr;
+      }
+
+      /* Ingredient row: fully stacked */
+      .ingredient-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .ingredient-row button {
+        width: 100%;
+        height: 36px;
+      }
+    }
+
+    /* DOCS PANEL */
+    .file-queue {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .file-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .file-item .file-icon {
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+
+    .file-item .file-info {
+      flex: 1;
+    }
+
+    .file-item .file-name {
+      font-weight: 500;
+      font-size: 14px;
+    }
+
+    .file-item .file-meta {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .file-item .file-status {
+      font-size: 13px;
+    }
+
+    .ai-status {
+      font-size: 13px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 12px 0;
+    }
+
+    .ai-spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(251, 95, 171, 0.3);
+      border-top-color: var(--pink);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    .recipe-select-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .recipe-select-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      cursor: pointer;
+      transition: border-color .2s;
+    }
+
+    .recipe-select-card:hover {
+      border-color: var(--pink);
+    }
+
+    .recipe-select-card.selected {
+      border-color: var(--pink);
+      background: rgba(251, 95, 171, 0.05);
+    }
+
+    .recipe-select-card input[type=checkbox] {
+      margin-top: 3px;
+      accent-color: var(--pink);
+    }
+
+    .recipe-card-body {
+      flex: 1;
+    }
+
+    .recipe-card-name {
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .recipe-card-macros {
+      font-size: 12px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- LOGIN OVERLAY -->
+  <div id="login-overlay" style="position:fixed;inset:0;background:#0F172A;z-index:9999;display:flex;align-items:center;justify-content:center;">
+    <div style="background:#1E293B;border:1px solid rgba(251,95,171,0.2);border-radius:16px;padding:40px;width:100%;max-width:400px;margin:20px;">
+      <div style="text-align:center;margin-bottom:32px;">
+        <img src="https://g2fit.es/wp-content/uploads/2024/06/cropped-IMG_5187-1-180x85.png" style="height:48px;width:auto;margin-bottom:16px;display:block;margin-left:auto;margin-right:auto;">
+        <h2 style="color:#F1F5F9;font-size:22px;font-weight:700;">Panel de Gestión</h2>
+        <p style="color:#64748B;font-size:14px;margin-top:6px;">Acceso restringido — G2FIT Nutrición</p>
+      </div>
+      <form onsubmit="handleLogin(event)">
+        <div style="margin-bottom:16px;">
+          <label style="display:block;color:#94a3b8;font-size:13px;font-weight:500;margin-bottom:6px;">Email</label>
+          <input id="login-email" type="email" required placeholder="tu@email.com"
+            style="width:100%;padding:12px 14px;background:#0F172A;border:1px solid rgba(251,95,171,0.25);border-radius:8px;color:#F1F5F9;font-size:14px;outline:none;font-family:inherit;">
+        </div>
+        <div style="margin-bottom:8px;">
+          <label style="display:block;color:#94a3b8;font-size:13px;font-weight:500;margin-bottom:6px;">Contraseña</label>
+          <input id="login-password" type="password" required placeholder="••••••••"
+            style="width:100%;padding:12px 14px;background:#0F172A;border:1px solid rgba(251,95,171,0.25);border-radius:8px;color:#F1F5F9;font-size:14px;outline:none;font-family:inherit;">
+        </div>
+        <p id="login-error" style="color:#ef4444;font-size:13px;min-height:20px;margin-bottom:12px;margin-top:8px;"></p>
+        <button id="login-btn" type="submit"
+          style="width:100%;padding:13px;background:linear-gradient(135deg,#FB5FAB,#d63c8e);border:none;border-radius:8px;color:white;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">
+          Entrar
+        </button>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- NAV -->
+  <nav>
+    <div class="logo">
+      <img src="https://g2fit.es/wp-content/uploads/2024/06/cropped-IMG_5187-1-180x85.png" style="height:32px;width:auto;object-fit:contain">
+      <div class="logo-text">G2<span>FIT</span> <span style="color:var(--muted);font-weight:400">Nutrición</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span id="user-email-display" style="color:#64748B;font-size:12px;display:none;"></span>
+      <button id="logout-btn" onclick="logout()" style="display:none;align-items:center;gap:6px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);color:#ef4444;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;font-family:inherit;">
+        Cerrar sesión
+      </button>
+      <button class="config-btn" onclick="openConfig()">⚙️ Configuración</button>
+    </div>
+  </nav>
+
+  <!-- CONFIG MODAL -->
+  <div class="modal-overlay" id="config-modal" style="display:none">
+    <div class="modal">
+      <h3>⚙️ Configuración</h3>
+      <p>La conexión con Supabase ya está integrada. Aquí solo necesitas configurar tu <strong>Anthropic API
+          Key</strong> para activar la importación de recetas desde PDF o Word con IA.</p>
+      <div class="field">
+        <label>Anthropic API Key (para importar PDF/Word con IA)</label>
+        <input id="cfg-anthropic" type="password" placeholder="sk-ant-api03-...">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeConfig()">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveConfig()">💾 Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="container">
+
+    <!-- CONFIG BANNER -->
+    <div id="config-banner">
+      <span class="icon">⚠️</span>
+      <div>Configura tu <strong>Anthropic API Key</strong> para importar recetas desde PDF/Word con IA. <button
+          onclick="openConfig()"
+          style="background:none;border:none;color:var(--yellow);cursor:pointer;font-weight:600;font-family:inherit">Configurar
+          ahora →</button></div>
+    </div>
+
+    <!-- STATS -->
+    <div class="stats-bar">
+      <div class="stat-card">
+        <div class="stat-label">Total Recetas</div>
+        <div class="stat-value" id="stat-total">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Desayunos</div>
+        <div class="stat-value" id="stat-desayuno">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Comidas & Cenas</div>
+        <div class="stat-value" id="stat-principales">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Snacks</div>
+        <div class="stat-value" id="stat-snacks">—</div>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('manual', this)">✍️ Añadir Receta</button>
+      <button class="tab" onclick="switchTab('csv', this)">📥 Importar CSV</button>
+      <button class="tab" onclick="switchTab('docs', this)">🤖 PDF / Word</button>
+      <button class="tab" onclick="switchTab('lista', this)">📋 Ver Recetas</button>
+      <button class="tab" id="tab-clientes" onclick="switchTab('clientes', this)">👥 Clientes</button>
+      <button class="tab" id="tab-dietas" onclick="switchTab('dietas', this)">🍽️ Dietas</button>
+    </div>
+
+    <!-- PANEL: MANUAL -->
+    <div class="panel active" id="panel-manual">
+      <div class="card">
+        <h3>✍️ Añadir receta manualmente</h3>
+        <form id="recipe-form">
+
+          <!-- BÁSICOS -->
+          <div class="form-grid">
+            <div class="field col-full">
+              <label>Nombre de la receta *</label>
+              <input id="f-nombre" placeholder="Ej: Ensalada de pollo con aguacate" required>
+            </div>
+            <div class="field">
+              <label>Categoría *</label>
+              <select id="f-categoria" required>
+                <option value="">Selecciona...</option>
+                <option value="desayuno">🌅 Desayuno</option>
+                <option value="comida">🥗 Comida</option>
+                <option value="cena">🌙 Cena</option>
+                <option value="merienda">☕ Merienda</option>
+                <option value="snack">🍌 Snack</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Dificultad</label>
+              <select id="f-dificultad">
+                <option value="facil">😊 Fácil</option>
+                <option value="media" selected>🧑‍🍳 Media</option>
+                <option value="dificil">👨‍🍳 Difícil</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Tiempo preparación (min)</label>
+              <input id="f-tiempo" type="number" placeholder="20" min="1">
+            </div>
+            <div class="field">
+              <label>Porciones</label>
+              <input id="f-porciones" type="number" placeholder="1" min="1" value="1">
+            </div>
+          </div>
+
+          <!-- MACROS -->
+          <br>
+          <div
+            style="font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">
+            Valores nutricionales (por porción) *</div>
+          <div class="form-grid cols3">
+            <div class="field">
+              <label>Calorías (kcal) *</label>
+              <input id="f-calorias" type="number" placeholder="450" step="0.1" required>
+            </div>
+            <div class="field">
+              <label>Proteínas (g) *</label>
+              <input id="f-proteinas" type="number" placeholder="35" step="0.1" required>
+            </div>
+            <div class="field">
+              <label>Carbohidratos (g) *</label>
+              <input id="f-carbohidratos" type="number" placeholder="40" step="0.1" required>
+            </div>
+            <div class="field">
+              <label>Grasas (g) *</label>
+              <input id="f-grasas" type="number" placeholder="12" step="0.1" required>
+            </div>
+            <div class="field">
+              <label>Fibra (g)</label>
+              <input id="f-fibra" type="number" placeholder="5" step="0.1">
+            </div>
+            <div class="field">
+              <label>Azúcar (g)</label>
+              <input id="f-azucar" type="number" placeholder="3" step="0.1">
+            </div>
+          </div>
+
+          <!-- INGREDIENTES -->
+          <br>
+          <div
+            style="font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">
+            Ingredientes</div>
+          <div class="ingredients-list" id="ingredients-list">
+            <div class="ingredient-row">
+              <input placeholder="Ingrediente (ej: pechuga de pollo)" class="ing-name">
+              <input placeholder="Cantidad (ej: 200g, 1 taza)" style="max-width:140px" class="ing-amount">
+              <input placeholder="g" type="number" min="0" step="1" style="max-width:70px" class="ing-grams"
+                title="Gramos exactos">
+              <button type="button" onclick="removeIngredient(this)">✕</button>
+            </div>
+          </div>
+          <button type="button" class="add-ingredient" onclick="addIngredient()">+ Añadir ingrediente</button>
+
+          <!-- PREPARACION -->
+          <br><br>
+          <div class="field">
+            <label>Modo de preparación</label>
+            <textarea id="f-preparacion" placeholder="Describe paso a paso cómo se prepara la receta..."></textarea>
+          </div>
+
+          <!-- ARRAYS -->
+          <br>
+          <div class="form-grid">
+            <div class="field">
+              <label>Alérgenos (Enter para añadir)</label>
+              <div class="tags-input-wrap" id="wrap-alergenos" onclick="this.querySelector('input').focus()">
+                <input placeholder="gluten, lacteo, huevo..." onkeydown="handleTagInput(event,'alergenos')">
+              </div>
+              <div id="hidden-alergenos" style="display:none"></div>
+            </div>
+            <div class="field">
+              <label>Restricciones dietéticas</label>
+              <div class="tags-input-wrap" id="wrap-restricciones" onclick="this.querySelector('input').focus()">
+                <input placeholder="vegana, sin_gluten, vegetariana..."
+                  onkeydown="handleTagInput(event,'restricciones')">
+              </div>
+            </div>
+            <div class="field col-full">
+              <label>Tags / etiquetas</label>
+              <div class="tags-input-wrap" id="wrap-tags" onclick="this.querySelector('input').focus()">
+                <input placeholder="alto_proteina, rapido, economico..." onkeydown="handleTagInput(event,'tags')">
+              </div>
+            </div>
+          </div>
+
+          <!-- COMPATIBILIDAD DIETÉTICA -->
+          <br>
+          <div style="font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Compatibilidad dietética</div>
+          <div style="display:flex;gap:24px;flex-wrap:wrap;padding:12px 16px;background:rgba(255,255,255,0.03);border-radius:8px;border:1px solid rgba(255,255,255,0.07)">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
+              <input type="checkbox" id="f-apto-omnivoro" checked style="width:16px;height:16px;accent-color:var(--pink)">
+              Omnívora
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
+              <input type="checkbox" id="f-apto-vegetariano" style="width:16px;height:16px;accent-color:var(--pink)">
+              Vegetariana
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
+              <input type="checkbox" id="f-apto-vegano" style="width:16px;height:16px;accent-color:var(--pink)">
+              Vegana
+            </label>
+          </div>
+          <br>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" onclick="resetForm()">🗑️ Limpiar</button>
+            <button type="submit" class="btn btn-primary" id="submit-btn">
+              <span>💾 Guardar en Supabase</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- PANEL: CSV -->
+    <div class="panel" id="panel-csv">
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+        <input type="file" id="file-input" accept=".csv" onchange="handleFileSelect(event)">
+        <div class="drop-icon">📂</div>
+        <h3>Arrastra tu CSV aquí o haz clic para seleccionar</h3>
+        <p>Formato: CSV con cabeceras. <a id="download-template" href="#" onclick="downloadTemplate(event)"
+            style="color:var(--pink)">Descargar plantilla de ejemplo →</a></p>
+      </div>
+
+      <!-- INSTRUCCIONES CSV -->
+      <div class="card" style="margin-bottom:24px">
+        <h3>📋 Columnas del CSV</h3>
+        <br>
+        <table style="font-size:13px">
+          <thead>
+            <tr>
+              <th>Columna</th>
+              <th>Req.</th>
+              <th>Valores / Formato</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>nombre</code></td>
+              <td>✅</td>
+              <td>Texto libre</td>
+            </tr>
+            <tr>
+              <td><code>categoria</code></td>
+              <td>✅</td>
+              <td>desayuno / comida / cena / snack / merienda</td>
+            </tr>
+            <tr>
+              <td><code>calorias</code></td>
+              <td>✅</td>
+              <td>Número (ej: 450)</td>
+            </tr>
+            <tr>
+              <td><code>proteinas_g</code></td>
+              <td>✅</td>
+              <td>Número (ej: 35.5)</td>
+            </tr>
+            <tr>
+              <td><code>carbohidratos_g</code></td>
+              <td>✅</td>
+              <td>Número</td>
+            </tr>
+            <tr>
+              <td><code>grasas_g</code></td>
+              <td>✅</td>
+              <td>Número</td>
+            </tr>
+            <tr>
+              <td><code>fibra_g</code></td>
+              <td>—</td>
+              <td>Número</td>
+            </tr>
+            <tr>
+              <td><code>azucar_g</code></td>
+              <td>—</td>
+              <td>Número</td>
+            </tr>
+            <tr>
+              <td><code>sodio_mg</code></td>
+              <td>—</td>
+              <td>Número</td>
+            </tr>
+            <tr>
+              <td><code>preparacion</code></td>
+              <td>—</td>
+              <td>Texto libre</td>
+            </tr>
+            <tr>
+              <td><code>tiempo_prep_min</code></td>
+              <td>—</td>
+              <td>Número de minutos</td>
+            </tr>
+            <tr>
+              <td><code>dificultad</code></td>
+              <td>—</td>
+              <td>facil / media / dificil</td>
+            </tr>
+            <tr>
+              <td><code>porciones</code></td>
+              <td>—</td>
+              <td>Número (defecto 1)</td>
+            </tr>
+            <tr>
+              <td><code>ingredientes</code></td>
+              <td>—</td>
+              <td><strong>nombre:cantidad|nombre:cantidad</strong> (ej: pollo:200g|arroz:80g)</td>
+            </tr>
+            <tr>
+              <td><code>alergenos</code></td>
+              <td>—</td>
+              <td>Separados por | (ej: gluten|lacteo)</td>
+            </tr>
+            <tr>
+              <td><code>restricciones</code></td>
+              <td>—</td>
+              <td>Separadas por | (ej: vegana|sin_gluten)</td>
+            </tr>
+            <tr>
+              <td><code>tags</code></td>
+              <td>—</td>
+              <td>Separadas por | (ej: alto_proteina|rapido)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- PREVIEW & IMPORT -->
+      <div id="csv-preview" style="display:none">
+        <div class="table-wrap" style="margin-bottom:16px">
+          <div class="table-header">
+            <h3>Vista previa — <span id="csv-count">0</span> recetas detectadas</h3>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span id="csv-errors-badge" class="badge"
+                style="background:rgba(239,68,68,0.15);color:var(--red);border-color:rgba(239,68,68,0.3);display:none"></span>
+              <span id="csv-ok-badge" class="badge"></span>
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Nombre</th>
+                  <th>Categoría</th>
+                  <th>Cal.</th>
+                  <th>Prot.</th>
+                  <th>Carb.</th>
+                  <th>Gras.</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="csv-preview-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="import-progress" style="display:none">
+          <div class="progress-wrap">
+            <div class="progress-bar">
+              <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="progress-label" id="progress-label">Importando...</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;justify-content:flex-end">
+          <button class="btn btn-secondary" onclick="resetCsv()">✕ Cancelar</button>
+          <button class="btn btn-primary" id="import-btn" onclick="importCSV()">
+            📥 Importar a Supabase
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL: PDF/WORD -->
+    <div class="panel" id="panel-docs">
+      <!-- Input fuera del drop-zone para evitar loop de clicks -->
+      <input type="file" id="doc-file-input" accept=".pdf,.docx,.doc" multiple style="display:none"
+        onchange="handleDocFiles(this.files)">
+
+      <div class="card" style="margin-bottom:20px">
+        <h3>🤖 Importar recetas desde PDF o Word con IA</h3>
+        <p style="color:var(--muted);font-size:14px;margin-bottom:16px">Sube uno o varios archivos PDF o Word (.docx).
+          La IA (Claude) leerá el texto, detectará todas las recetas y te mostrará una vista previa antes de guardar en
+          Supabase.</p>
+        <label for="doc-file-input" style="display:block;cursor:pointer">
+          <div class="drop-zone" id="doc-drop-zone" style="padding:40px;margin-bottom:0;cursor:pointer">
+            <div class="drop-icon">📄</div>
+            <h3>Arrastra PDF o Word aquí</h3>
+            <p>o haz clic para seleccionar archivos · .pdf · .docx</p>
+          </div>
+        </label>
+      </div>
+
+      <div id="doc-queue" style="display:none">
+        <div class="file-queue" id="file-queue-list"></div>
+        <div id="ai-status-bar" class="ai-status" style="display:none">
+          <div class="ai-spinner"></div>
+          <span id="ai-status-text">Procesando con IA...</span>
+        </div>
+      </div>
+
+      <div id="doc-results" style="display:none">
+        <div class="table-header" style="padding:0 0 16px 0;border:none">
+          <h3 style="font-size:16px">Recetas detectadas — selecciona las que quieres guardar</h3>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary" onclick="toggleAllDocs(true)" style="padding:7px 14px;font-size:13px">☑
+              Todas</button>
+            <button class="btn btn-secondary" onclick="toggleAllDocs(false)" style="padding:7px 14px;font-size:13px">☐
+              Ninguna</button>
+          </div>
+        </div>
+        <div class="recipe-select-grid" id="doc-recipe-grid"></div>
+        <div id="doc-import-progress" style="display:none;margin-top:16px">
+          <div class="progress-wrap">
+            <div class="progress-bar">
+              <div class="progress-fill" id="doc-progress-fill"></div>
+            </div>
+            <div class="progress-label" id="doc-progress-label"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px">
+          <button class="btn btn-secondary" onclick="resetDocs()">✕ Limpiar</button>
+          <button class="btn btn-primary" id="doc-import-btn" onclick="importDocRecipes()">💾 Guardar seleccionadas en
+            Supabase</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL: LISTA -->
+    <div class="panel" id="panel-lista">
+      <div class="search-bar">
+        <input id="search-input" placeholder="🔍  Buscar receta..." oninput="filterTable()">
+        <select class="filter-select" id="filter-cat" onchange="filterTable()">
+          <option value="">Todas las categorías</option>
+          <option value="desayuno">Desayuno</option>
+          <option value="comida">Comida</option>
+          <option value="cena">Cena</option>
+          <option value="snack">Snack</option>
+          <option value="merienda">Merienda</option>
+        </select>
+        <button class="btn btn-secondary" onclick="loadRecipes()">🔄 Recargar</button>
+      </div>
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>Recetas en Supabase</h3>
+          <span class="badge" id="list-badge">0</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Categoría</th>
+                <th>Cal.</th>
+                <th>Prot.</th>
+                <th>Carb.</th>
+                <th>Gras.</th>
+                <th>Dif.</th>
+                <th>Dieta</th>
+                <th>Activa</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="recipes-tbody">
+              <tr>
+                <td colspan="10">
+                  <div class="empty-state">
+                    <div class="empty-icon">🥗</div>
+                    <p>Configura Supabase y recarga</p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════
+         PANEL: CLIENTES
+    ═══════════════════════════════════════════ -->
+    <div class="panel" id="panel-clientes">
+      <div class="search-bar">
+        <input id="c-search" placeholder="🔍 Buscar cliente..." oninput="filterClientes()">
+        <select class="filter-select" id="c-filter-obj" onchange="filterClientes()" style="width:180px">
+          <option value="">Todos los objetivos</option>
+          <option value="perder_peso">Perder peso</option>
+          <option value="ganar_masa">Ganar masa</option>
+          <option value="mantener">Mantener</option>
+          <option value="definicion">Definición</option>
+        </select>
+        <button class="btn btn-secondary" onclick="loadClientes()">🔄 Recargar</button>
+      </div>
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>Clientes registrados</h3>
+          <span class="badge" id="c-badge">0</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr>
+              <th>Cliente</th><th>Email</th><th>Objetivo</th>
+              <th>Peso inicial</th><th>IMC</th><th>Alta</th>
+              <th style="text-align:center">Acciones</th>
+            </tr></thead>
+            <tbody id="clientes-tbody">
+              <tr><td colspan="7"><div class="empty-state"><div class="empty-icon">👥</div><p>Cargando clientes...</p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════
+         PANEL: DIETAS GENERADAS
+    ═══════════════════════════════════════════ -->
+    <div class="panel" id="panel-dietas">
+
+      <!-- Stats dietas -->
+      <div class="stats-bar" style="margin-bottom:20px">
+        <div class="stat-card">
+          <div class="stat-label">Total generadas</div>
+          <div class="stat-value" id="d-stat-total">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">En revisión</div>
+          <div class="stat-value" style="color:var(--yellow)" id="d-stat-revision">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Aprobadas / Enviadas</div>
+          <div class="stat-value" id="d-stat-aprobadas">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Canceladas</div>
+          <div class="stat-value" style="color:var(--red)" id="d-stat-canceladas">—</div>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="search-bar" style="margin-bottom:20px">
+        <input id="d-search" placeholder="🔍  Buscar por cliente o email..." oninput="filterDietas()" style="flex:1">
+        <select id="d-filter-estado" class="filter-select" onchange="filterDietas()" style="width:180px">
+          <option value="">Todos los estados</option>
+          <option value="en_revision">🔔 En revisión</option>
+          <option value="generada">✨ Generada</option>
+          <option value="aprobada">✅ Aprobada</option>
+          <option value="enviada">📧 Enviada</option>
+          <option value="cancelada">❌ Cancelada</option>
+          <option value="completada">🏆 Completada</option>
+        </select>
+        <button class="btn btn-secondary" onclick="loadDietas()">🔄 Recargar</button>
+      </div>
+
+      <!-- Tabla de dietas -->
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>Dietas generadas</h3>
+          <span class="badge" id="d-list-badge">0</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Email</th>
+                <th>Objetivo</th>
+                <th>Calorías</th>
+                <th>Estado</th>
+                <th>Revisión</th>
+                <th>Fecha</th>
+                <th style="text-align:center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="dietas-tbody">
+              <tr>
+                <td colspan="8">
+                  <div class="empty-state">
+                    <div class="empty-icon">🍽️</div>
+                    <p>Cargando dietas...</p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Ver detalle completo / revisar / editar la dieta -->
+    <div class="modal-overlay" id="dieta-modal">
+      <div class="modal" style="width:800px;max-height:90vh;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <h3 id="dm-title">Detalle de la dieta</h3>
+          <button class="btn btn-ghost" onclick="closeDietaModal()" style="font-size:18px;padding:4px 8px">✕</button>
+        </div>
+        <!-- Info cliente -->
+        <div style="background:var(--surface2);border-radius:10px;padding:16px;margin-bottom:16px">
+          <div
+            style="font-size:13px;color:var(--muted);margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">
+            Cliente</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:14px" id="dm-cliente"></div>
+        </div>
+        <!-- Info nutricional -->
+        <div style="background:var(--surface2);border-radius:10px;padding:16px;margin-bottom:16px">
+          <div
+            style="font-size:13px;color:var(--muted);margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">
+            Objetivos Nutricionales</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center" id="dm-macros"></div>
+        </div>
+        <!-- Motivo revision -->
+        <div id="dm-motivo-wrap"
+          style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:14px;margin-bottom:16px;display:none">
+          <div style="font-size:13px;color:var(--yellow);font-weight:600;margin-bottom:6px">⚠️ Motivo de revisión</div>
+          <div id="dm-motivo" style="font-size:14px"></div>
+        </div>
+        <!-- ═══ PLAN COMPLETO ═══ -->
+        <div id="dm-plan-wrap" style="margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div
+              style="font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">
+              Plan Nutricional Completo</div>
+            <button class="btn btn-secondary" id="dm-btn-editar" onclick="toggleEditMode()"
+              style="padding:5px 12px;font-size:12px">✏️ Modificar</button>
+          </div>
+          <div id="dm-plan-content" style="font-size:14px"></div>
+        </div>
+        <!-- Notas nutricionista -->
+        <div class="field" style="margin-bottom:16px">
+          <label>📝 Notas del nutricionista (internas)</label>
+          <textarea id="dm-notas" placeholder="Añade observaciones o modificaciones al plan..."
+            style="min-height:70px"></textarea>
+        </div>
+        <!-- Botones de accion -->
+        <div style="display:flex;gap:10px;flex-wrap:wrap" id="dm-actions">
+          <button class="btn" id="dm-btn-enviar" style="background:#FB5FAB;color:#000;flex:1"
+            onclick="enviarDietaWebhook()">✅ Enviar al cliente</button>
+          <button class="btn" id="dm-btn-regenerar"
+            style="background:rgba(99,102,241,0.15);color:#818cf8;border:1px solid rgba(99,102,241,0.3);flex:1"
+            onclick="regenerarDietaWebhook()">🔄 Generar de nuevo</button>
+          <button class="btn" id="dm-btn-rechazar"
+            style="background:rgba(239,68,68,0.15);color:var(--red);border:1px solid rgba(239,68,68,0.3);flex:1"
+            onclick="rechazarDieta()">❌ Rechazar</button>
+          <button class="btn btn-secondary" onclick="guardarNotasDieta()" style="flex:1">💾 Guardar notas</button>
+        </div>
+        <div id="dm-feedback" style="margin-top:12px;font-size:13px;text-align:center;min-height:18px"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MODAL: Ficha completa del cliente -->
+  <div class="modal-overlay" id="cliente-modal">
+    <div class="modal" style="width:860px;max-height:92vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 id="cm-title">Ficha del cliente</h3>
+        <button class="btn btn-ghost" onclick="closeClienteModal()" style="font-size:18px;padding:4px 8px">✕</button>
+      </div>
+      <div style="display:flex;gap:4px;background:var(--surface2);border-radius:10px;padding:4px;margin-bottom:20px;width:fit-content">
+        <button class="btn" id="cm-tab-perfil" onclick="switchCMTab('perfil')" style="padding:8px 16px;font-size:13px;background:var(--pink);color:#fff">👤 Perfil</button>
+        <button class="btn btn-ghost" id="cm-tab-seguimiento" onclick="switchCMTab('seguimiento')" style="padding:8px 16px;font-size:13px">📈 Seguimiento</button>
+        <button class="btn btn-ghost" id="cm-tab-historial" onclick="switchCMTab('historial')" style="padding:8px 16px;font-size:13px">🍽️ Dietas</button>
+      </div>
+
+      <!-- PERFIL -->
+      <div id="cm-panel-perfil">
+        <div style="background:var(--surface2);border-radius:10px;padding:16px;margin-bottom:12px">
+          <div style="font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Datos personales</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:14px" id="cm-personal"></div>
+        </div>
+        <div style="background:var(--surface2);border-radius:10px;padding:16px;margin-bottom:12px">
+          <div style="font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Medidas corporales (inicio)</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center" id="cm-medidas"></div>
+        </div>
+        <div style="background:var(--surface2);border-radius:10px;padding:16px;margin-bottom:12px">
+          <div style="font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Preferencias &amp; Estilo de vida</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px" id="cm-preferencias"></div>
+        </div>
+      </div>
+
+      <!-- SEGUIMIENTO -->
+      <div id="cm-panel-seguimiento" style="display:none">
+        <div style="background:var(--surface2);border-radius:10px;padding:16px;margin-bottom:16px">
+          <div style="font-size:13px;font-weight:600;margin-bottom:12px">Registrar nueva medición</div>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;align-items:end">
+            <div class="field"><label>Fecha</label><input type="date" id="med-fecha"></div>
+            <div class="field"><label>Peso (kg)</label><input type="number" id="med-peso" step="0.1" placeholder="82.0"></div>
+            <div class="field"><label>Cont. superior</label><input type="number" id="med-c1" step="0.5" placeholder="74"></div>
+            <div class="field"><label>Cont. ombligo</label><input type="number" id="med-c2" step="0.5" placeholder="90"></div>
+            <div class="field"><label>Cont. inferior</label><input type="number" id="med-c3" step="0.5" placeholder="105"></div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:end;margin-top:10px">
+            <div class="field" style="flex:1"><label>Notas</label><input id="med-notas" placeholder="Observaciones..."></div>
+            <button class="btn btn-primary" onclick="addMedicion()" style="white-space:nowrap">+ Registrar</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+          <div style="background:var(--surface2);border-radius:10px;padding:16px">
+            <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--pink)">⚖️ Evolución del peso</div>
+            <canvas id="chart-peso" height="180"></canvas>
+          </div>
+          <div style="background:var(--surface2);border-radius:10px;padding:16px">
+            <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--pink)">📏 Contornos abdominales</div>
+            <canvas id="chart-medidas" height="180"></canvas>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <div class="table-header" style="padding:14px 18px">
+            <div style="font-size:14px;font-weight:600">Historial de mediciones</div>
+            <button class="btn btn-secondary" onclick="compartirProgreso()" style="padding:7px 14px;font-size:13px">🔗 Compartir progreso</button>
+          </div>
+          <div style="overflow-x:auto">
+            <table>
+              <thead><tr>
+                <th>Fecha</th><th>Peso (kg)</th><th>Cont. sup.</th>
+                <th>Cont. ombligo</th><th>Cont. inf.</th><th>Notas</th><th></th>
+              </tr></thead>
+              <tbody id="seguimiento-tbody">
+                <tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">Sin registros</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- HISTORIAL DIETAS -->
+      <div id="cm-panel-historial" style="display:none">
+        <div id="cm-dietas-list"><div style="text-align:center;padding:20px;color:var(--muted)">Cargando...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div id="toast-container"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <script>
+
+    // ==========================================
+    // AUTENTICACION
+    // ==========================================
+    const ALLOWED_EMAILS = ['pruebagerman7@gmail.com', 'lydia.dietista.denia@gmail.com'];
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SERVICE_KEY);
+
+    async function checkAuth() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (session && ALLOWED_EMAILS.includes(session.user.email.toLowerCase())) {
+        showApp(session.user.email);
+      } else {
+        if (session) await supabaseClient.auth.signOut();
+        showLogin();
+      }
+    }
+
+    function showApp(email) {
+      document.getElementById('login-overlay').style.display = 'none';
+      const logoutBtn = document.getElementById('logout-btn');
+      logoutBtn.style.display = 'flex';
+      const emailDisplay = document.getElementById('user-email-display');
+      emailDisplay.textContent = email;
+      emailDisplay.style.display = 'block';
+    }
+
+    function showLogin() {
+      document.getElementById('login-overlay').style.display = 'flex';
+      document.getElementById('logout-btn').style.display = 'none';
+      document.getElementById('user-email-display').style.display = 'none';
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value.trim().toLowerCase();
+      const password = document.getElementById('login-password').value;
+      const errorEl = document.getElementById('login-error');
+      const btn = document.getElementById('login-btn');
+
+      errorEl.textContent = '';
+      btn.disabled = true;
+      btn.textContent = 'Entrando...';
+
+      if (!ALLOWED_EMAILS.includes(email)) {
+        errorEl.textContent = 'Acceso no autorizado para este email.';
+        btn.disabled = false;
+        btn.textContent = 'Entrar';
+        return;
+      }
+
+      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (error) {
+        errorEl.textContent = 'Email o contraseña incorrectos.';
+        btn.disabled = false;
+        btn.textContent = 'Entrar';
+      } else {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        showApp(session.user.email);
+      }
+    }
+
+    async function logout() {
+      await supabaseClient.auth.signOut();
+      showLogin();
+    }
+
+    // Verificar autenticacion al cargar
+    checkAuth();
+
+    // ==========================================
+    // CONFIG
+    // ==========================================
+    const SUPABASE_URL = 'https://blardvkldwwbhgdmsxhd.supabase.co';
+    // Anon key pública — siempre fija, NUNCA se sobreescribe con localStorage
+    // La service_role key estaba causando el error "Forbidden use of secret API key in browser"
+    const SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsYXJkdmtsZHd3YmhnZG1zeGhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMjMyMzIsImV4cCI6MjA4NzU5OTIzMn0.vZXMw7_M70-aWp8yTw022dZz2yQKZaL1aXuDyGm-xo8';
+    let ANTHROPIC_KEY = localStorage.getItem('g2fit_anthropic_key') || '';
+
+    // Limpiar cualquier service_role key antigua que pudiera estar guardada
+    localStorage.removeItem('g2fit_service_key');
+
+    function getHeaders() {
+      return {
+        'apikey': SERVICE_KEY,
+        'Authorization': `Bearer ${SERVICE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      };
+    }
+
+    function openConfig() {
+      document.getElementById('cfg-anthropic').value = ANTHROPIC_KEY || '';
+      const m = document.getElementById('config-modal');
+      m.style.display = 'flex';
+      m.style.opacity = '1';
+      m.style.pointerEvents = 'all';
+    }
+    function closeConfig() {
+      const m = document.getElementById('config-modal');
+      m.style.opacity = '0';
+      m.style.pointerEvents = 'none';
+      setTimeout(() => { m.style.display = 'none'; }, 200);
+    }
+    function saveConfig() {
+      const ak = document.getElementById('cfg-anthropic').value.trim();
+      if (ak) { ANTHROPIC_KEY = ak; localStorage.setItem('g2fit_anthropic_key', ak); }
+      closeConfig();
+      showToast('✅ Anthropic API Key guardada', 'success');
+      checkConfig();
+    }
+
+    function checkConfig() {
+      const banner = document.getElementById('config-banner');
+      if (ANTHROPIC_KEY) {
+        banner.classList.add('hidden');
+      } else {
+        banner.classList.remove('hidden');
+      }
+    }
+
+    // ==========================================
+    // TABS
+    // ==========================================
+    function switchTab(tab, el) {
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('panel-' + tab).classList.add('active');
+      el.classList.add('active');
+      if (tab === 'lista') loadRecipes();
+    }
+
+    // ==========================================
+    // STATS
+    // ==========================================
+    async function loadStats() {
+      if (!SERVICE_KEY) return;
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/recetas?select=categoria,activa`, { headers: getHeaders() });
+        if (!res.ok) return;
+        const data = await res.json();
+        document.getElementById('stat-total').textContent = data.length;
+        document.getElementById('stat-desayuno').textContent = data.filter(r => r.categoria === 'desayuno').length;
+        document.getElementById('stat-principales').textContent = data.filter(r => r.categoria === 'comida' || r.categoria === 'cena').length;
+        document.getElementById('stat-snacks').textContent = data.filter(r => r.categoria === 'snack' || r.categoria === 'merienda').length;
+      } catch (e) { }
+    }
+
+    // ==========================================
+    // FORM MANUAL
+    // ==========================================
+    const tagData = { alergenos: [], restricciones: [], tags: [] };
+
+    function addIngredient() {
+      const list = document.getElementById('ingredients-list');
+      const row = document.createElement('div');
+      row.className = 'ingredient-row';
+      row.innerHTML = `
+    <input placeholder="Ingrediente" class="ing-name">
+    <input placeholder="Cantidad (ej: 200g)" style="max-width:140px" class="ing-amount">
+    <input placeholder="g" type="number" min="0" step="1" style="max-width:70px" class="ing-grams" title="Gramos exactos">
+    <button type="button" onclick="removeIngredient(this)">✕</button>
+  `;
+      list.appendChild(row);
+      row.querySelector('input').focus();
+    }
+    function removeIngredient(btn) {
+      const rows = document.querySelectorAll('.ingredient-row');
+      if (rows.length > 1) btn.parentElement.remove();
+    }
+
+    function handleTagInput(e, field) {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        const val = e.target.value.trim().replace(',', '');
+        if (!val) return;
+        tagData[field].push(val);
+        renderTags(field);
+        e.target.value = '';
+      } else if (e.key === 'Backspace' && !e.target.value) {
+        tagData[field].pop();
+        renderTags(field);
+      }
+    }
+    function renderTags(field) {
+      const wrap = document.getElementById('wrap-' + field);
+      const input = wrap.querySelector('input');
+      wrap.querySelectorAll('.tag-chip').forEach(c => c.remove());
+      tagData[field].forEach((tag, i) => {
+        const chip = document.createElement('span');
+        chip.className = 'tag-chip';
+        chip.innerHTML = `${tag} <button type="button" onclick="removeTag('${field}',${i})">×</button>`;
+        wrap.insertBefore(chip, input);
+      });
+    }
+    function removeTag(field, idx) {
+      tagData[field].splice(idx, 1);
+      renderTags(field);
+    }
+
+    function getIngredients() {
+      const rows = document.querySelectorAll('.ingredient-row');
+      const result = [];
+      rows.forEach(row => {
+        const name = row.querySelector('.ing-name').value.trim();
+        const amount = row.querySelector('.ing-amount').value.trim();
+        const grams = parseFloat(row.querySelector('.ing-grams').value) || 0;
+        if (name) result.push({ nombre: name, cantidad: amount || '', gramos: grams });
+      });
+      return result;
+    }
+
+    function resetForm() {
+      document.getElementById('recipe-form').reset();
+      document.getElementById('ingredients-list').innerHTML = `
+    <div class="ingredient-row">
+      <input placeholder="Ingrediente (ej: pechuga de pollo)" class="ing-name">
+      <input placeholder="Cantidad (ej: 200g, 1 taza)" style="max-width:140px" class="ing-amount">
+      <input placeholder="g" type="number" min="0" step="1" style="max-width:70px" class="ing-grams" title="Gramos exactos">
+      <button type="button" onclick="removeIngredient(this)">✕</button>
+    </div>`;
+      ['alergenos', 'restricciones', 'tags'].forEach(f => { tagData[f] = []; renderTags(f); });
+    }
+
+    document.getElementById('recipe-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!SERVICE_KEY) { showToast('⚠️ Error de configuración', 'error'); return; }
+
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner"></div> Guardando...';
+
+      const body = {
+        nombre: document.getElementById('f-nombre').value.trim(),
+        categoria: document.getElementById('f-categoria').value,
+        calorias: parseFloat(document.getElementById('f-calorias').value),
+        proteinas_g: parseFloat(document.getElementById('f-proteinas').value),
+        carbohidratos_g: parseFloat(document.getElementById('f-carbohidratos').value),
+        grasas_g: parseFloat(document.getElementById('f-grasas').value),
+        fibra_g: parseFloat(document.getElementById('f-fibra').value) || 0,
+        azucar_g: parseFloat(document.getElementById('f-azucar').value) || 0,
+        sodio_mg: parseFloat(document.getElementById('f-sodio')?.value) || 0,
+        tiempo_prep_min: parseInt(document.getElementById('f-tiempo').value) || 15,
+        dificultad: document.getElementById('f-dificultad').value,
+        porciones: parseInt(document.getElementById('f-porciones').value) || 1,
+        preparacion: document.getElementById('f-preparacion').value.trim() || null,
+        ingredientes: getIngredients(),
+        alergenos: tagData.alergenos,
+        restricciones: tagData.restricciones,
+        tags: tagData.tags,
+        apto_omnivoro: document.getElementById('f-apto-omnivoro').checked,
+        apto_vegetariano: document.getElementById('f-apto-vegetariano').checked,
+        apto_vegano: document.getElementById('f-apto-vegano').checked,
+        activa: true
+      };
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/recetas`, {
+          method: 'POST', headers: getHeaders(), body: JSON.stringify(body)
+        });
+        if (res.ok) {
+          showToast(`✅ "${body.nombre}" guardada correctamente`, 'success');
+          resetForm();
+          loadStats();
+        } else {
+          const err = await res.json();
+          showToast(`❌ Error: ${err.message || 'Error al guardar'}`, 'error');
+        }
+      } catch (err) {
+        showToast('❌ Error de conexión con Supabase', 'error');
+      }
+
+      btn.disabled = false;
+      btn.innerHTML = '<span>💾 Guardar en Supabase</span>';
+    });
+
+    // ==========================================
+    // CSV IMPORT
+    // ==========================================
+    let parsedCSV = [];
+
+    const dropZone = document.getElementById('drop-zone');
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault(); dropZone.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file) processCSVFile(file);
+    });
+
+    function handleFileSelect(e) {
+      const file = e.target.files[0];
+      if (file) processCSVFile(file);
+    }
+
+    function processCSVFile(file) {
+      const reader = new FileReader();
+      reader.onload = e => { parseCSV(e.target.result); };
+      reader.readAsText(file, 'UTF-8');
+    }
+
+    function parseCSV(text) {
+      const lines = text.split('\n').filter(l => l.trim());
+      if (lines.length < 2) { showToast('CSV vacío o sin datos', 'error'); return; }
+
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      parsedCSV = [];
+      const errors = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const vals = splitCSVLine(lines[i]);
+        const row = {};
+        headers.forEach((h, idx) => { row[h] = (vals[idx] || '').trim().replace(/^"|"$/g, ''); });
+
+        const reqFields = ['nombre', 'categoria', 'calorias', 'proteinas_g', 'carbohidratos_g', 'grasas_g'];
+        const missing = reqFields.filter(f => !row[f]);
+        if (missing.length) { errors.push(`Fila ${i + 1}: faltan campos: ${missing.join(', ')}`); }
+
+        const validCats = ['desayuno', 'comida', 'cena', 'snack', 'merienda'];
+        if (row.categoria && !validCats.includes(row.categoria)) {
+          errors.push(`Fila ${i + 1}: categoría "${row.categoria}" no válida`);
+        }
+
+        // Parse ingredientes
+        let ingredientes = [];
+        if (row.ingredientes) {
+          ingredientes = row.ingredientes.split('|').map(part => {
+            const [nombre, cantidad, gramos] = part.split(':');
+            const gramosNum = parseFloat(gramos) || parseFloat((cantidad || '').replace(/[^0-9.]/g, '')) || 0;
+            return { nombre: (nombre || '').trim(), cantidad: (cantidad || '').trim(), gramos: gramosNum };
+          }).filter(i => i.nombre);
+        }
+
+        parsedCSV.push({
+          ...row,
+          calorias: parseFloat(row.calorias) || 0,
+          proteinas_g: parseFloat(row.proteinas_g) || 0,
+          carbohidratos_g: parseFloat(row.carbohidratos_g) || 0,
+          grasas_g: parseFloat(row.grasas_g) || 0,
+          fibra_g: parseFloat(row.fibra_g) || 0,
+          azucar_g: parseFloat(row.azucar_g) || 0,
+          sodio_mg: parseFloat(row.sodio_mg) || 0,
+          tiempo_prep_min: parseInt(row.tiempo_prep_min) || 15,
+          porciones: parseInt(row.porciones) || 1,
+          ingredientes,
+          alergenos: row.alergenos ? row.alergenos.split('|').filter(Boolean) : [],
+          restricciones: row.restricciones ? row.restricciones.split('|').filter(Boolean) : [],
+          tags: row.tags ? row.tags.split('|').filter(Boolean) : [],
+          dificultad: row.dificultad || 'media',
+          apto_omnivoro: row.apto_omnivoro !== undefined ? (row.apto_omnivoro === 'true' || row.apto_omnivoro === true) : true,
+          apto_vegetariano: row.apto_vegetariano !== undefined ? (row.apto_vegetariano === 'true' || row.apto_vegetariano === true) : !!(row.restricciones && row.restricciones.toLowerCase().includes('vegetar')),
+          apto_vegano: row.apto_vegano !== undefined ? (row.apto_vegano === 'true' || row.apto_vegano === true) : !!(row.restricciones && row.restricciones.toLowerCase().includes('vegana')),
+          activa: true,
+          _error: missing.length > 0
+        });
+      }
+
+      renderCSVPreview(errors);
+    }
+
+    function splitCSVLine(line) {
+      const result = [];
+      let cur = ''; let inQ = false;
+      for (let c of line) {
+        if (c === '"') { inQ = !inQ; }
+        else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
+        else cur += c;
+      }
+      result.push(cur);
+      return result;
+    }
+
+    function renderCSVPreview(errors) {
+      const tbody = document.getElementById('csv-preview-tbody');
+      const okCount = parsedCSV.filter(r => !r._error).length;
+      const errCount = parsedCSV.filter(r => r._error).length;
+
+      document.getElementById('csv-count').textContent = parsedCSV.length;
+      document.getElementById('csv-ok-badge').textContent = `${okCount} válidas`;
+      const errBadge = document.getElementById('csv-errors-badge');
+      if (errCount > 0) { errBadge.textContent = `${errCount} con errores`; errBadge.style.display = ''; }
+      else errBadge.style.display = 'none';
+
+      tbody.innerHTML = parsedCSV.map((r, i) => `
+    <tr>
+      <td style="color:var(--muted)">${i + 1}</td>
+      <td>${r.nombre || '—'}</td>
+      <td><span class="cat-badge cat-${r.categoria}">${r.categoria || '—'}</span></td>
+      <td>${r.calorias}</td>
+      <td>${r.proteinas_g}g</td>
+      <td>${r.carbohidratos_g}g</td>
+      <td>${r.grasas_g}g</td>
+      <td>${r._error ? '<span class="status-err">⚠️ Error</span>' : '<span class="status-ok">✅ OK</span>'}</td>
+    </tr>
+  `).join('');
+
+      document.getElementById('csv-preview').style.display = 'block';
+      document.getElementById('drop-zone').style.display = 'none';
+    }
+
+    async function importCSV() {
+      if (!SERVICE_KEY) { showToast('⚠️ Error de configuración', 'error'); return; }
+      const valid = parsedCSV.filter(r => !r._error);
+      if (!valid.length) { showToast('No hay recetas válidas para importar', 'error'); return; }
+
+      document.getElementById('import-btn').disabled = true;
+      document.getElementById('import-progress').style.display = 'block';
+
+      let ok = 0; let fail = 0;
+      for (let i = 0; i < valid.length; i++) {
+        const r = { ...valid[i] };
+        delete r._error;
+        try {
+          const res = await fetch(`${SUPABASE_URL}/rest/v1/recetas`, {
+            method: 'POST', headers: getHeaders(), body: JSON.stringify(r)
+          });
+          if (res.ok) ok++; else fail++;
+        } catch (e) { fail++; }
+
+        const pct = Math.round(((i + 1) / valid.length) * 100);
+        document.getElementById('progress-fill').style.width = pct + '%';
+        document.getElementById('progress-label').textContent = `Importando ${i + 1} de ${valid.length}... (${ok} OK, ${fail} errores)`;
+      }
+
+      showToast(`✅ Importación completada: ${ok} recetas guardadas${fail ? `, ${fail} fallidas` : ''}`, ok > 0 ? 'success' : 'error');
+      loadStats();
+      document.getElementById('import-btn').disabled = false;
+
+      setTimeout(() => { resetCsv(); switchTab('lista', document.querySelectorAll('.tab')[2]); loadRecipes(); }, 1500);
+    }
+
+    function resetCsv() {
+      parsedCSV = [];
+      document.getElementById('csv-preview').style.display = 'none';
+      document.getElementById('drop-zone').style.display = 'block';
+      document.getElementById('file-input').value = '';
+      document.getElementById('import-progress').style.display = 'none';
+    }
+
+    // ==========================================
+    // LISTA DE RECETAS
+    // ==========================================
+    let allRecipes = [];
+
+    async function loadRecipes() {
+      if (!SERVICE_KEY) return;
+      document.getElementById('recipes-tbody').innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--muted)">Cargando...</td></tr>';
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/recetas?select=*&order=created_at.desc`, { headers: getHeaders() });
+        if (!res.ok) { showToast('Error al cargar recetas', 'error'); return; }
+        allRecipes = await res.json();
+        renderTable(allRecipes);
+        document.getElementById('list-badge').textContent = allRecipes.length;
+      } catch (e) { showToast('Error de conexión', 'error'); }
+    }
+
+    function renderTable(data) {
+      const tbody = document.getElementById('recipes-tbody');
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">🥗</div><p>No hay recetas todavía</p></div></td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.map(r => `
+    <tr>
+      <td style="font-weight:500">${r.nombre}</td>
+      <td><span class="cat-badge cat-${r.categoria}">${r.categoria}</span></td>
+      <td>${r.calorias} kcal</td>
+      <td>${r.proteinas_g}g</td>
+      <td>${r.carbohidratos_g}g</td>
+      <td>${r.grasas_g}g</td>
+      <td style="color:var(--muted);font-size:13px">${r.dificultad || '—'}</td>
+      <td style="white-space:nowrap">
+        ${r.apto_vegano ? '<span title="Apta para veganos" style="font-size:11px;background:rgba(34,197,94,0.15);color:#4ade80;border:1px solid rgba(34,197,94,0.3);border-radius:20px;padding:2px 7px;margin-right:3px">🌱 Vegana</span>' : ''}
+        ${r.apto_vegetariano && !r.apto_vegano ? '<span title="Apta para vegetarianos" style="font-size:11px;background:rgba(132,204,22,0.15);color:#a3e635;border:1px solid rgba(132,204,22,0.3);border-radius:20px;padding:2px 7px;margin-right:3px">🥚 Veg.</span>' : ''}
+        ${!r.apto_vegano && !r.apto_vegetariano ? '<span title="Solo omnívora" style="font-size:11px;background:rgba(251,95,171,0.1);color:var(--muted);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:2px 7px">🍖 Omn.</span>' : ''}
+      </td>
+      <td><span style="color:${r.activa ? 'var(--pink)' : 'var(--red)'}">${r.activa ? '✅' : '❌'}</span></td>
+      <td>
+        <button class="btn btn-ghost" style="padding:4px 8px;font-size:13px" onclick="deleteRecipe('${r.id}','${r.nombre.replace(/'/g, "\\'")}')">🗑️</button>
+      </td>
+    </tr>
+  `).join('');
+    }
+
+    function filterTable() {
+      const search = document.getElementById('search-input').value.toLowerCase();
+      const cat = document.getElementById('filter-cat').value;
+      const filtered = allRecipes.filter(r =>
+        r.nombre.toLowerCase().includes(search) &&
+        (!cat || r.categoria === cat)
+      );
+      renderTable(filtered);
+    }
+
+    async function deleteRecipe(id, nombre) {
+      if (!confirm(`¿Eliminar "${nombre}"?`)) return;
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/recetas?id=eq.${id}`, { method: 'DELETE', headers: getHeaders() });
+        if (res.ok) { showToast(`🗑️ "${nombre}" eliminada`, 'success'); loadRecipes(); loadStats(); }
+        else showToast('Error al eliminar', 'error');
+      } catch (e) { showToast('Error de conexión', 'error'); }
+    }
+
+    // ==========================================
+    // CSV TEMPLATE DOWNLOAD
+    // ==========================================
+    function downloadTemplate(e) {
+      e.stopPropagation();
+      const csv = `nombre,categoria,calorias,proteinas_g,carbohidratos_g,grasas_g,fibra_g,azucar_g,sodio_mg,preparacion,tiempo_prep_min,dificultad,porciones,ingredientes,alergenos,restricciones,tags\r\nTortilla española,desayuno,380,20,32,18,3,1,420,"Batir huevos con sal. Mezclar con patatas pochadas. Cuajar en sartén a fuego medio-bajo.",20,facil,2,huevos:4|patatas:300g|cebolla:1|aceite_oliva:3cda,huevo,vegetariana,proteina|clasico\r\nPollo al horno con verduras,comida,520,45,30,18,8,4,380,"Marinar pollo con ajo, limón y hierbas. Hornear 180°C 40min con los vegetales.",45,media,2,pechuga_pollo:300g|patatas:200g|pimiento:1|cebolla:1|ajo:3|aceite_oliva:2cda,,sin_gluten|sin_lactosa,alto_proteina|saludable\r\n`;
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'plantilla_recetas_g2fit.csv'; a.click();
+    }
+
+    // ==========================================
+    // TOAST
+    // ==========================================
+    function showToast(msg, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerHTML = `<span class="toast-icon">${type === 'success' ? '✅' : '❌'}</span><span>${msg}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 4000);
+    }
+
+    // ==========================================
+    // INIT
+    // ==========================================
+    checkConfig();
+    if (SERVICE_KEY) { loadStats(); }
+
+    // openConfig ya definida correctamente arriba
+  </script>
+
+  <!-- CLIENTES JS -->
+  <script>
+    // ══════════════════════════════════════════════════════
+    // GESTIÓN DE CLIENTES & SEGUIMIENTO
+    // ══════════════════════════════════════════════════════
+    let allClientes = [];
+    let currentCliente = null;
+    let seguimientoData = [];
+    let pesoChart = null;
+    let medidasChart = null;
+
+    async function loadClientes() {
+      const tbody = document.getElementById('clientes-tbody');
+      tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">⏳</div><p>Cargando...</p></div></td></tr>`;
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/clientes?select=*&order=created_at.desc&limit=500`, { headers: getHeaders() });
+        if (!res.ok) throw new Error(await res.text());
+        allClientes = await res.json();
+        document.getElementById('c-badge').textContent = allClientes.length;
+        filterClientes();
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">❌</div><p>${e.message}</p></div></td></tr>`;
+      }
+    }
+
+    function filterClientes() {
+      const q = (document.getElementById('c-search').value || '').toLowerCase();
+      const obj = document.getElementById('c-filter-obj').value;
+      const filtered = allClientes.filter(c =>
+        (!q || (c.nombre||'').toLowerCase().includes(q) || (c.email||'').toLowerCase().includes(q) || (c.apellidos||'').toLowerCase().includes(q)) &&
+        (!obj || c.objetivo === obj)
+      );
+      renderClientes(filtered);
+    }
+
+    function renderClientes(list) {
+      const tbody = document.getElementById('clientes-tbody');
+      document.getElementById('c-badge').textContent = list.length;
+      if (!list.length) {
+        tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">👥</div><p>No hay clientes</p></div></td></tr>`;
+        return;
+      }
+      tbody.innerHTML = list.map(c => {
+        const nombre = `${c.nombre||''} ${c.apellidos||''}`.trim() || '—';
+        const obj = OBJETIVO_LABEL[c.objetivo] || c.objetivo || '—';
+        const fecha = c.created_at ? new Date(c.created_at).toLocaleDateString('es-ES') : '—';
+        return `<tr>
+          <td style="font-weight:500">${nombre}</td>
+          <td style="font-size:13px;color:var(--muted)">${c.email||'—'}</td>
+          <td style="font-size:13px">${obj}</td>
+          <td style="font-size:13px">${c.peso_actual ? c.peso_actual+' kg' : '—'}</td>
+          <td style="font-size:13px">${c.imc ? c.imc+' ('+( c.imc_categoria||'')+')'  : '—'}</td>
+          <td style="font-size:12px;color:var(--muted)">${fecha}</td>
+          <td style="text-align:center"><button class="btn btn-secondary" onclick="openClienteModal('${c.id}')" style="padding:6px 12px;font-size:12px">👁 Ver ficha</button></td>
+        </tr>`;
+      }).join('');
+    }
+
+    function openClienteModal(clienteId) {
+      const c = allClientes.find(x => x.id === clienteId);
+      if (!c) return;
+      currentCliente = c;
+      const nombre = `${c.nombre||''} ${c.apellidos||''}`.trim();
+      document.getElementById('cm-title').textContent = nombre || 'Ficha del cliente';
+
+      document.getElementById('cm-personal').innerHTML = [
+        ['Nombre', nombre||'—'], ['Email', c.email||'—'], ['Teléfono', c.telefono||'—'],
+        ['Edad', c.edad ? c.edad+' años' : '—'], ['Sexo', c.sexo||'—'],
+        ['Nivel actividad', c.nivel_actividad||'—'],
+        ['Objetivo', OBJETIVO_LABEL[c.objetivo]||c.objetivo||'—'],
+        ['Tiempo objetivo', c.tiempo_objetivo||'—'],
+        ['Comidas/día', c.comidas_diarias||'—'],
+        ['Comidas seleccionadas', (c.comidas_seleccionadas||[]).join(', ')||'—'],
+        ['Alergias', (c.alergias||[]).join(', ')||'Ninguna'],
+        ['Intolerancias', (c.intolerancias||[]).join(', ')||'Ninguna'],
+      ].map(([k,v]) => `<div><span style="font-size:12px;color:var(--muted)">${k}</span><div style="font-weight:500;margin-top:2px;font-size:13px">${v}</div></div>`).join('');
+
+      document.getElementById('cm-medidas').innerHTML = [
+        ['⚖️ Peso inicial', c.peso_actual ? c.peso_actual+' kg' : '—'],
+        ['📏 Altura', c.altura ? c.altura+' cm' : '—'],
+        ['🔢 IMC', c.imc ? c.imc+'\n'+(c.imc_categoria||'') : '—'],
+        ['📐 Cont. sup.', c.contorno_abdominal_1 ? c.contorno_abdominal_1+' cm' : '—'],
+        ['📐 Ombligo', c.contorno_abdominal_2 ? c.contorno_abdominal_2+' cm' : '—'],
+        ['📐 Cont. inf.', c.contorno_abdominal_3 ? c.contorno_abdominal_3+' cm' : '—'],
+        ['📊 Variación', (c.contorno_abdominal_1 && c.contorno_abdominal_3) ? Math.abs(c.contorno_abdominal_3 - c.contorno_abdominal_1)+' cm' : '—'],
+      ].map(([k,v]) => `<div style="background:rgba(251,95,171,0.08);border-radius:8px;padding:10px">
+        <div style="font-size:18px;font-weight:700;color:var(--pink);white-space:pre-line">${v}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">${k}</div></div>`).join('');
+
+      document.getElementById('cm-preferencias').innerHTML = [
+        ['Dieta anterior', c.dieta_anterior||'—'],
+        ['Alimentos a evitar', c.alimentos_a_evitar||'—'],
+        ['Consume lácteos', c.consume_lacteos ? 'Sí' : 'No'],
+        ['Consume alcohol', c.consume_alcohol||'—'],
+        ['Bebidas azucaradas', c.consume_bebidas_azucaradas||'—'],
+        ['Pica entre comidas', c.pica_entre_comidas||'—'],
+        ['Apetencias', (c.apetencias||[]).join(', ')||'—'],
+        ['Consume verduras', c.consume_verduras||'—'],
+        ['Proteínas preferidas', (c.proteinas_preferidas||[]).join(', ')||'—'],
+        ['Notas proteínas', c.notas_proteinas||'—'],
+        ['Carbohidratos preferidos', (c.carbohidratos_preferidos||[]).join(', ')||'—'],
+        ['Frutos secos', c.frutos_secos_preferidos||'—'],
+        ['Bebidas vegetales', (c.bebidas_vegetales_preferidas||[]).join(', ')||'—'],
+        ['Datos de interés', c.datos_interes||'—'],
+      ].map(([k,v]) => `<div><span style="font-size:12px;color:var(--muted)">${k}</span><div style="font-size:13px;margin-top:2px">${v}</div></div>`).join('');
+
+      document.getElementById('med-fecha').value = new Date().toISOString().split('T')[0];
+      ['med-peso','med-c1','med-c2','med-c3','med-notas'].forEach(id => document.getElementById(id).value = '');
+
+      switchCMTab('perfil');
+      document.getElementById('cliente-modal').classList.add('open');
+    }
+
+    function closeClienteModal() {
+      document.getElementById('cliente-modal').classList.remove('open');
+      currentCliente = null;
+      if (pesoChart) { pesoChart.destroy(); pesoChart = null; }
+      if (medidasChart) { medidasChart.destroy(); medidasChart = null; }
+    }
+
+    function switchCMTab(tab) {
+      ['perfil','seguimiento','historial'].forEach(t => {
+        document.getElementById('cm-panel-'+t).style.display = t === tab ? 'block' : 'none';
+        const btn = document.getElementById('cm-tab-'+t);
+        btn.style.background = t === tab ? 'var(--pink)' : 'none';
+        btn.style.color = t === tab ? '#fff' : 'var(--muted)';
+      });
+      if (tab === 'seguimiento') loadSeguimiento();
+      if (tab === 'historial') loadClienteDietas();
+    }
+
+    async function loadSeguimiento() {
+      if (!currentCliente) return;
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/seguimiento_clientes?cliente_id=eq.${currentCliente.id}&order=fecha.asc`, { headers: getHeaders() });
+        if (!res.ok) throw new Error(await res.text());
+        seguimientoData = await res.json();
+        renderSeguimientoTable();
+        renderCharts();
+      } catch (e) {
+        document.getElementById('seguimiento-tbody').innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--red)">Error: ${e.message}</td></tr>`;
+      }
+    }
+
+    function renderSeguimientoTable() {
+      const tbody = document.getElementById('seguimiento-tbody');
+      if (!seguimientoData.length) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">Sin registros. Añade la primera medición.</td></tr>`;
+        return;
+      }
+      const sorted = [...seguimientoData].reverse();
+      tbody.innerHTML = sorted.map(m => {
+        const fecha = new Date(m.fecha+'T00:00:00').toLocaleDateString('es-ES');
+        const prevIdx = seguimientoData.findIndex(x => x.id === m.id) - 1;
+        let diffPeso = '';
+        if (prevIdx >= 0 && seguimientoData[prevIdx].peso && m.peso) {
+          const diff = (m.peso - seguimientoData[prevIdx].peso).toFixed(1);
+          const col = diff > 0 ? 'var(--red)' : (diff < 0 ? 'var(--pink)' : 'var(--muted)');
+          diffPeso = ` <span style="font-size:11px;color:${col}">${diff>0?'+':''}${diff}</span>`;
+        }
+        return `<tr>
+          <td style="font-size:13px">${fecha}</td>
+          <td style="font-weight:600">${m.peso ? m.peso+' kg' : '—'}${diffPeso}</td>
+          <td style="font-size:13px;color:var(--muted)">${m.contorno_abdominal_1 ? m.contorno_abdominal_1+' cm' : '—'}</td>
+          <td style="font-size:13px;color:var(--muted)">${m.contorno_abdominal_2 ? m.contorno_abdominal_2+' cm' : '—'}</td>
+          <td style="font-size:13px;color:var(--muted)">${m.contorno_abdominal_3 ? m.contorno_abdominal_3+' cm' : '—'}</td>
+          <td style="font-size:12px;color:var(--muted)">${m.notas||'—'}</td>
+          <td><button class="btn btn-ghost" onclick="deleteMedicion('${m.id}')" style="font-size:12px;padding:3px 8px">🗑️</button></td>
+        </tr>`;
+      }).join('');
+    }
+
+    function renderCharts() {
+      if (!window.Chart) return;
+      const labels = seguimientoData.map(m => {
+        const d = new Date(m.fecha+'T00:00:00');
+        return d.toLocaleDateString('es-ES',{day:'2-digit',month:'short'});
+      });
+      const baseOpts = (datasets) => ({
+        type:'line', data:{ labels, datasets },
+        options:{
+          responsive:true, maintainAspectRatio:true,
+          plugins:{ legend:{ labels:{ color:'#94a3b8', font:{size:11}, boxWidth:12 } } },
+          scales:{
+            x:{ ticks:{color:'#64748b',font:{size:10}}, grid:{color:'rgba(255,255,255,0.05)'} },
+            y:{ ticks:{color:'#64748b',font:{size:10}}, grid:{color:'rgba(255,255,255,0.05)'} }
+          }
+        }
+      });
+      if (pesoChart) pesoChart.destroy();
+      pesoChart = new Chart(document.getElementById('chart-peso').getContext('2d'), baseOpts([{
+        label:'Peso (kg)', data:seguimientoData.map(m=>m.peso),
+        borderColor:'#FB5FAB', backgroundColor:'rgba(251,95,171,0.1)',
+        tension:0.3, pointRadius:4, pointBackgroundColor:'#FB5FAB', fill:true
+      }]));
+      if (medidasChart) medidasChart.destroy();
+      medidasChart = new Chart(document.getElementById('chart-medidas').getContext('2d'), baseOpts([
+        { label:'Superior', data:seguimientoData.map(m=>m.contorno_abdominal_1), borderColor:'#FB5FAB', tension:0.3, pointRadius:3, pointBackgroundColor:'#FB5FAB' },
+        { label:'Ombligo',  data:seguimientoData.map(m=>m.contorno_abdominal_2), borderColor:'#d63c8e',  tension:0.3, pointRadius:3, pointBackgroundColor:'#d63c8e' },
+        { label:'Inferior', data:seguimientoData.map(m=>m.contorno_abdominal_3), borderColor:'#818cf8',  tension:0.3, pointRadius:3, pointBackgroundColor:'#818cf8' },
+      ]));
+    }
+
+    async function addMedicion() {
+      if (!currentCliente) return;
+      const fecha = document.getElementById('med-fecha').value;
+      const peso  = parseFloat(document.getElementById('med-peso').value) || null;
+      const c1    = parseFloat(document.getElementById('med-c1').value) || null;
+      const c2    = parseFloat(document.getElementById('med-c2').value) || null;
+      const c3    = parseFloat(document.getElementById('med-c3').value) || null;
+      const notas = document.getElementById('med-notas').value.trim() || null;
+      if (!fecha) { showToast('Selecciona una fecha','error'); return; }
+      if (!peso && !c1 && !c2 && !c3) { showToast('Introduce al menos un valor','error'); return; }
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/seguimiento_clientes`,{
+          method:'POST', headers:getHeaders(),
+          body: JSON.stringify({ cliente_id:currentCliente.id, fecha, peso, contorno_abdominal_1:c1, contorno_abdominal_2:c2, contorno_abdominal_3:c3, notas })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast('✅ Medición registrada','success');
+        ['med-peso','med-c1','med-c2','med-c3','med-notas'].forEach(id => document.getElementById(id).value = '');
+        loadSeguimiento();
+      } catch(e) { showToast('❌ Error: '+e.message,'error'); }
+    }
+
+    async function deleteMedicion(id) {
+      if (!confirm('¿Eliminar este registro?')) return;
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/seguimiento_clientes?id=eq.${id}`,{ method:'DELETE', headers:getHeaders() });
+        if (!res.ok) throw new Error(await res.text());
+        showToast('Registro eliminado','success');
+        loadSeguimiento();
+      } catch(e) { showToast('Error: '+e.message,'error'); }
+    }
+
+    async function loadClienteDietas() {
+      if (!currentCliente) return;
+      const container = document.getElementById('cm-dietas-list');
+      container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">Cargando...</div>';
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/dietas_generadas?cliente_id=eq.${currentCliente.id}&order=created_at.desc`, { headers:getHeaders() });
+        if (!res.ok) throw new Error(await res.text());
+        const dietas = await res.json();
+        if (!dietas.length) { container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">Sin dietas generadas</div>'; return; }
+        container.innerHTML = dietas.map(d => {
+          const fecha = d.created_at ? new Date(d.created_at).toLocaleDateString('es-ES') : '—';
+          return `<div style="background:var(--surface2);border-radius:10px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-weight:600;font-size:14px;margin-bottom:4px">${estadoBadgeHtml(d.estado)} ${OBJETIVO_LABEL[d.objetivo]||d.objetivo||'—'}</div>
+              <div style="font-size:12px;color:var(--muted)">${fecha} · ${d.calorias_objetivo||'—'} kcal</div>
+            </div>
+            <button class="btn btn-secondary" onclick="closeClienteModal();switchTab('dietas',document.getElementById('tab-dietas'));setTimeout(()=>{ if(allDietas.length===0){loadDietas().then(()=>openDietaModal('${d.id}'))}else{openDietaModal('${d.id}')}},400)" style="font-size:12px;padding:6px 12px">Ver →</button>
+          </div>`;
+        }).join('');
+      } catch(e) { container.innerHTML = `<div style="text-align:center;padding:20px;color:var(--red)">${e.message}</div>`; }
+    }
+
+    async function compartirProgreso() {
+      if (!currentCliente) return;
+      let token = currentCliente.link_token;
+      if (!token) {
+        token = crypto.randomUUID();
+        try {
+          await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${currentCliente.id}`,{
+            method:'PATCH', headers:{...getHeaders(),'Prefer':'return=minimal'},
+            body: JSON.stringify({ link_token: token })
+          });
+          currentCliente.link_token = token;
+          const idx = allClientes.findIndex(c=>c.id===currentCliente.id);
+          if (idx !== -1) allClientes[idx].link_token = token;
+        } catch(e) { showToast('Error generando enlace: '+e.message,'error'); return; }
+      }
+      const origin = window.location.origin || 'https://tu-dominio.com';
+      const path = window.location.pathname.replace(/\/[^/]+$/, '');
+      const url = `${origin}${path}/progreso.html?c=${token}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        showToast('✅ Enlace copiado al portapapeles','success');
+      } catch(e) {
+        prompt('Copia este enlace para compartir con el cliente:', url);
+      }
+    }
+
+    document.getElementById('tab-clientes')?.addEventListener('click', function() {
+      if (allClientes.length === 0) loadClientes();
+    });
+    document.getElementById('cliente-modal')?.addEventListener('click', function(e) {
+      if (e.target === this) closeClienteModal();
+    });
+  </script>
+
+  <!-- PDF/WORD JS -->
+  <script>
+    // ==========================================
+    // PDF / WORD EXTRACTION
+    // ==========================================
+    let docExtractedRecipes = [];
+
+    // Setup PDF.js worker
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    // Drag & drop on doc zone
+    const docZone = document.getElementById('doc-drop-zone');
+    docZone.addEventListener('dragover', e => { e.preventDefault(); e.stopPropagation(); docZone.classList.add('dragover'); });
+    docZone.addEventListener('dragleave', e => { e.stopPropagation(); docZone.classList.remove('dragover'); });
+    docZone.addEventListener('drop', e => {
+      e.preventDefault(); e.stopPropagation();
+      docZone.classList.remove('dragover');
+      handleDocFiles(e.dataTransfer.files);
+    });
+
+    async function handleDocFiles(fileList) {
+      const files = Array.from(fileList || []);
+      if (!files.length) return;
+
+      if (!ANTHROPIC_KEY) {
+        showToast('⚠️ Configura tu Anthropic API Key en ⚙️ Configuración', 'error');
+        openConfig(); return;
+      }
+
+      resetDocs();
+      document.getElementById('doc-queue').style.display = 'block';
+      docExtractedRecipes = [];
+      const queueList = document.getElementById('file-queue-list');
+
+      // Render file queue items
+      files.forEach((f, i) => {
+        const ext = f.name.split('.').pop().toLowerCase();
+        const icon = ext === 'pdf' ? '📕' : '📘';
+        const item = document.createElement('div');
+        item.className = 'file-item'; item.id = `fitem-${i}`;
+        item.innerHTML = `
+        <div class="file-icon">${icon}</div>
+        <div class="file-info">
+          <div class="file-name">${f.name}</div>
+          <div class="file-meta">${(f.size / 1024).toFixed(1)} KB · ${ext.toUpperCase()}</div>
+        </div>
+        <div class="file-status" id="fstatus-${i}">⏳ En cola</div>`;
+        queueList.appendChild(item);
+      });
+
+      // Process each file sequentially
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        const statusEl = document.getElementById(`fstatus-${i}`);
+        statusEl.innerHTML = '<span style="color:var(--yellow)">📖 Extrayendo texto...</span>';
+
+        let text = '';
+        try {
+          const ext = f.name.split('.').pop().toLowerCase();
+          if (ext === 'pdf') {
+            text = await extractPDFText(f);
+          } else if (ext === 'docx' || ext === 'doc') {
+            text = await extractDocxText(f);
+          }
+        } catch (err) {
+          statusEl.innerHTML = '<span style="color:var(--red)">❌ Error al leer archivo</span>';
+          continue;
+        }
+
+        if (!text || text.trim().length < 50) {
+          statusEl.innerHTML = '<span style="color:var(--red)">❌ No se encontró texto</span>';
+          continue;
+        }
+
+        statusEl.innerHTML = '<span style="color:var(--yellow)">🤖 Procesando con Claude...</span>';
+        showAIStatus(`Analizando "${f.name}" con IA...`);
+
+        try {
+          const recipes = await extractRecipesWithClaude(text, f.name);
+          docExtractedRecipes.push(...recipes);
+          statusEl.innerHTML = `<span style="color:var(--pink)">✅ ${recipes.length} receta(s) encontrada(s)</span>`;
+        } catch (err) {
+          statusEl.innerHTML = `<span style="color:var(--red)">❌ Error IA: ${err.message}</span>`;
+        }
+      }
+
+      hideAIStatus();
+
+      if (docExtractedRecipes.length > 0) {
+        renderDocResults();
+      } else {
+        showToast('No se encontraron recetas válidas en los documentos', 'error');
+      }
+    }
+
+    async function extractPDFText(file) {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let text = '';
+      for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p);
+        const content = await page.getTextContent();
+        text += content.items.map(item => item.str).join(' ') + '\n';
+      }
+      return text;
+    }
+
+    async function extractDocxText(file) {
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      return result.value;
+    }
+
+    async function extractRecipesWithClaude(text, filename) {
+      // Reducir texto para evitar respuestas truncadas/malformadas
+      const trimmed = text.slice(0, 8000).replace(/`/g, "'");
+
+      const prompt = `Eres un dietista-nutricionista experto con amplios conocimientos de la composición nutricional de los alimentos. Analiza el texto del archivo "${filename}".
+
+TU TAREA:
+1. Detecta todas las recetas o platos presentes en el texto
+2. Para cada receta, extrae los ingredientes CON SUS CANTIDADES EXACTAS tal como aparecen en el PDF (ej: "200g pechuga de pollo", "1 huevo L", "50ml aceite de oliva")
+3. Para cada ingrediente, indica "gramos" con el PESO NETO EN GRAMOS (número decimal):
+   - "200g pechuga" → gramos: 200
+   - "1 huevo L (70g)" → gramos: 70
+   - "1 taza arroz (180ml)" → gramos: 180 (usa equivalencia estándar)
+   - "1 cda aceite" → gramos: 14
+   - Si la cantidad es un líquido en ml, usa 1ml≈1g como aproximación
+   - Si no hay cantidad explícita, estima una ración típica
+4. CALCULA los valores nutricionales SUMANDO los aportes de CADA ingrediente según su cantidad:
+   - Usa tus valores nutricionales por 100g para cada alimento
+   - Multiplica por la cantidad real indicada
+   - Suma todos los ingredientes para obtener el total de la receta
+   - Divide entre las porciones si se especifican
+
+EJEMPLOS de cálculo:
+- 200g pechuga de pollo (120kcal/100g) = 240kcal, 44g prot, 0g carb, 3g grasa
+- 150g arroz cocido (130kcal/100g) = 195kcal, 2.5g prot, 44g carb, 0.5g grasa
+- Total del plato = suma de todos los ingredientes
+
+NUNCA dejes calorias, proteinas_g, carbohidratos_g o grasas_g en 0. Si hay ingrediente sin cantidad, estima una cantidad típica.
+
+REGLAS JSON (obligatorio para que el resultado sea válido):
+- Devuelve SOLO un array JSON, sin markdown ni texto adicional
+- Strings en UNA SOLA LÍNEA: usa \\n para separar pasos de preparación, no saltos reales
+- Números siempre como número (no string), nunca null
+- Si no hay recetas en el texto: []
+
+Formato exacto (un objeto por receta):
+{"nombre":"Nombre del plato","categoria":"desayuno|comida|cena|snack|merienda","calorias":420,"proteinas_g":35,"carbohidratos_g":45,"grasas_g":8,"fibra_g":4,"azucar_g":2,"sodio_mg":380,"ingredientes":[{"nombre":"Pechuga de pollo","cantidad":"200g","gramos":200},{"nombre":"Arroz","cantidad":"80g seco","gramos":80}],"preparacion":"Paso 1\\nPaso 2\\nPaso 3","tiempo_prep_min":25,"dificultad":"facil|media|dificil","porciones":1,"alergenos":[],"restricciones":[],"tags":[]}
+
+TEXTO DEL PDF:
+${trimmed}`;
+
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': ANTHROPIC_KEY,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5',
+          max_tokens: 6000,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.message || `HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      let content = data.content[0].text.trim();
+
+      // Limpiar posibles bloques markdown
+      content = content.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+
+      // Intentar parseo directo
+      try {
+        const recipes = JSON.parse(content);
+        return Array.isArray(recipes) ? recipes.map(r => ({ ...r, activa: true })) : [];
+      } catch (e1) {
+        // Fallback: extraer el array con regex
+        const match = content.match(/\[[\s\S]*\]/);
+        if (!match) throw new Error('No se encontró JSON válido en la respuesta de la IA');
+
+        let jsonStr = match[0];
+
+        // Sanitizar: reemplazar saltos de línea literales dentro de strings
+        jsonStr = sanitizeJsonString(jsonStr);
+
+        try {
+          const recipes = JSON.parse(jsonStr);
+          return Array.isArray(recipes) ? recipes.map(r => ({ ...r, activa: true })) : [];
+        } catch (e2) {
+          // Último fallback: parsear receta a receta individualmente
+          const partials = extractPartialRecipes(jsonStr);
+          if (partials.length > 0) return partials;
+          throw new Error(`JSON inválido: ${e2.message.slice(0, 80)}`);
+        }
+      }
+    }
+
+    // Sanitiza saltos de línea y comillas literales dentro de cadenas JSON
+    function sanitizeJsonString(str) {
+      let result = '';
+      let inString = false;
+      let escaped = false;
+      for (let i = 0; i < str.length; i++) {
+        const ch = str[i];
+        if (escaped) { result += ch; escaped = false; continue; }
+        if (ch === '\\') { result += ch; escaped = true; continue; }
+        if (ch === '"') { inString = !inString; result += ch; continue; }
+        if (inString) {
+          if (ch === '\n') { result += '\\n'; continue; }
+          if (ch === '\r') { result += '\\r'; continue; }
+          if (ch === '\t') { result += '\\t'; continue; }
+        }
+        result += ch;
+      }
+      return result;
+    }
+
+    // Extrae objetos individuales válidos del array aunque el array global esté roto
+    function extractPartialRecipes(str) {
+      const recipes = [];
+      let depth = 0, start = -1;
+      for (let i = 0; i < str.length; i++) {
+        if (str[i] === '{') { if (depth === 0) start = i; depth++; }
+        else if (str[i] === '}') {
+          depth--;
+          if (depth === 0 && start !== -1) {
+            try {
+              const obj = JSON.parse(sanitizeJsonString(str.slice(start, i + 1)));
+              if (obj.nombre) recipes.push({ ...obj, activa: true });
+            } catch (_) { }
+            start = -1;
+          }
+        }
+      }
+      return recipes;
+    }
+
+
+    function showAIStatus(msg) {
+      const bar = document.getElementById('ai-status-bar');
+      document.getElementById('ai-status-text').textContent = msg;
+      bar.style.display = 'flex';
+    }
+    function hideAIStatus() {
+      document.getElementById('ai-status-bar').style.display = 'none';
+    }
+
+    function renderDocResults() {
+      const grid = document.getElementById('doc-recipe-grid');
+      grid.innerHTML = docExtractedRecipes.map((r, i) => {
+        const totalGrams = r.ingredientes?.reduce((sum, ing) => sum + (parseFloat(ing.gramos) || 0), 0) || 0;
+        const ingPreview = r.ingredientes?.slice(0, 4).map(ing =>
+          `<span style="font-size:11px;background:rgba(251, 95, 171,0.1);border:1px solid rgba(251, 95, 171,0.2);border-radius:4px;padding:2px 6px;color:var(--text)">${ing.nombre}${ing.gramos ? ` <strong style="color:var(--pink)">${ing.gramos}g</strong>` : ''}</span>`
+        ).join(' ') || '';
+        return `
+      <div class="recipe-select-card selected" id="rcard-${i}" onclick="toggleDocCard(${i})">
+        <input type="checkbox" id="rcheck-${i}" checked onchange="toggleDocCard(${i}, this.checked)">
+        <div class="recipe-card-body">
+          <div class="recipe-card-name">${r.nombre || 'Sin nombre'} <span class="cat-badge cat-${r.categoria}" style="margin-left:6px">${r.categoria}</span></div>
+          <div class="recipe-card-macros">
+            🔥 ${r.calorias || 0} kcal &nbsp;·&nbsp;
+            💪 ${r.proteinas_g || 0}g prot &nbsp;·&nbsp;
+            🌾 ${r.carbohidratos_g || 0}g carb &nbsp;·&nbsp;
+            🥑 ${r.grasas_g || 0}g grasas
+            ${totalGrams > 0 ? `&nbsp;·&nbsp; ⚖️ ${totalGrams.toFixed(0)}g total` : ''}
+          </div>
+          ${ingPreview ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">${ingPreview}${r.ingredientes?.length > 4 ? `<span style="font-size:11px;color:var(--muted)">+${r.ingredientes.length - 4} más</span>` : ''}</div>` : ''}
+        </div>
+      </div>`;
+      }).join('');
+      document.getElementById('doc-results').style.display = 'block';
+    }
+
+    function toggleDocCard(i, checked) {
+      const card = document.getElementById(`rcard-${i}`);
+      const cb = document.getElementById(`rcheck-${i}`);
+      const val = checked !== undefined ? checked : !cb.checked;
+      cb.checked = val;
+      card.classList.toggle('selected', val);
+    }
+
+    function toggleAllDocs(checked) {
+      docExtractedRecipes.forEach((_, i) => toggleDocCard(i, checked));
+    }
+
+    async function importDocRecipes() {
+      if (!SERVICE_KEY) { showToast('⚠️ Error de configuración', 'error'); return; }
+
+      const selected = docExtractedRecipes.filter((_, i) => document.getElementById(`rcheck-${i}`)?.checked);
+      if (!selected.length) { showToast('Selecciona al menos una receta', 'error'); return; }
+
+      document.getElementById('doc-import-btn').disabled = true;
+      document.getElementById('doc-import-progress').style.display = 'block';
+
+      let ok = 0, fail = 0, lastError = '';
+      for (let i = 0; i < selected.length; i++) {
+        try {
+          // Sanitizar payload: solo columnas de la tabla, garantizar tipos correctos y NOT NULL
+          const r = selected[i];
+          // Normalizar ingredientes para incluir gramos numérico
+          const ingredientesNorm = (Array.isArray(r.ingredientes) ? r.ingredientes : []).map(ing => ({
+            nombre: String(ing.nombre || '').trim(),
+            cantidad: String(ing.cantidad || '').trim(),
+            gramos: Math.max(0, parseFloat(ing.gramos) || parseFloat(String(ing.cantidad || '').replace(/[^0-9.]/g, '')) || 0)
+          }));
+          const payload = {
+            nombre: String(r.nombre || 'Sin nombre').slice(0, 255),
+            categoria: ['desayuno', 'comida', 'cena', 'snack', 'merienda'].includes(r.categoria) ? r.categoria : 'comida',
+            calorias: Math.max(1, parseFloat(r.calorias) || 1),
+            proteinas_g: Math.max(0, parseFloat(r.proteinas_g) || 0),
+            carbohidratos_g: Math.max(0, parseFloat(r.carbohidratos_g) || 0),
+            grasas_g: Math.max(0, parseFloat(r.grasas_g) || 0),
+            fibra_g: Math.max(0, parseFloat(r.fibra_g) || 0),
+            azucar_g: Math.max(0, parseFloat(r.azucar_g) || 0),
+            sodio_mg: Math.max(0, parseFloat(r.sodio_mg) || 0),
+            ingredientes: ingredientesNorm,
+            preparacion: r.preparacion ? String(r.preparacion) : null,
+            tiempo_prep_min: Math.max(1, parseInt(r.tiempo_prep_min) || 15),
+            dificultad: ['facil', 'media', 'dificil'].includes(r.dificultad) ? r.dificultad : 'media',
+            porciones: Math.max(1, parseInt(r.porciones) || 1),
+            alergenos: Array.isArray(r.alergenos) ? r.alergenos : [],
+            restricciones: Array.isArray(r.restricciones) ? r.restricciones : [],
+            tags: Array.isArray(r.tags) ? r.tags : [],
+            apto_omnivoro: true,
+            apto_vegetariano: false,
+            apto_vegano: false,
+            activa: true
+          };
+
+          const res = await fetch(`${SUPABASE_URL}/rest/v1/recetas`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(payload)
+          });
+
+          if (res.ok) {
+            ok++;
+          } else {
+            fail++;
+            try {
+              const errData = await res.json();
+              lastError = errData.message || errData.error || errData.code || `HTTP ${res.status}`;
+              console.error('Supabase error:', errData, 'Payload:', payload);
+            } catch (_) {
+              lastError = `HTTP ${res.status}`;
+            }
+          }
+        } catch (e) {
+          fail++;
+          lastError = e.message;
+          console.error('Fetch error:', e);
+        }
+
+        const pct = Math.round(((i + 1) / selected.length) * 100);
+        document.getElementById('doc-progress-fill').style.width = pct + '%';
+        document.getElementById('doc-progress-label').textContent = `Guardando ${i + 1} de ${selected.length}... (${ok} OK${fail ? `, ${fail} error` : ''})`;
+      }
+
+      if (ok > 0 && fail === 0) {
+        showToast(`✅ ${ok} receta${ok > 1 ? 's' : ''} guardada${ok > 1 ? 's' : ''} en Supabase`, 'success');
+      } else if (ok > 0) {
+        showToast(`⚠️ ${ok} OK, ${fail} fallida${fail > 1 ? 's' : ''}: ${lastError}`, 'error');
+      } else {
+        showToast(`❌ Error al guardar: ${lastError}`, 'error');
+      }
+
+      loadStats();
+      document.getElementById('doc-import-btn').disabled = false;
+      setTimeout(() => { resetDocs(); switchTab('lista', document.querySelectorAll('.tab')[3]); loadRecipes(); }, 1200);
+    }
+
+    function resetDocs() {
+      docExtractedRecipes = [];
+      document.getElementById('file-queue-list').innerHTML = '';
+      document.getElementById('doc-queue').style.display = 'none';
+      document.getElementById('doc-results').style.display = 'none';
+      document.getElementById('doc-recipe-grid').innerHTML = '';
+      document.getElementById('doc-file-input').value = '';
+      document.getElementById('doc-import-progress').style.display = 'none';
+      document.getElementById('doc-progress-fill').style.width = '0';
+    }
+
+    // ══════════════════════════════════════════════════════
+    // GESTIÓN DE DIETAS
+    // ══════════════════════════════════════════════════════
+
+    let allDietas = [];
+    let currentDieta = null;
+
+    // Estado → badge visual
+    const ESTADO_BADGE = {
+      en_revision: { label: '🔔 En revisión', color: 'rgba(245,158,11,0.15)', text: '#f59e0b', border: 'rgba(245,158,11,0.3)' },
+      generada: { label: '✨ Generada', color: 'rgba(99,102,241,0.15)', text: '#818cf8', border: 'rgba(99,102,241,0.3)' },
+      aprobada: { label: '✅ Aprobada', color: 'rgba(251, 95, 171,0.15)', text: '#FB5FAB', border: 'rgba(251, 95, 171,0.3)' },
+      enviada: { label: '📧 Enviada', color: 'rgba(251, 95, 171,0.12)', text: '#f9a8d4', border: 'rgba(251, 95, 171,0.25)' },
+      cancelada: { label: '❌ Cancelada', color: 'rgba(239,68,68,0.15)', text: '#ef4444', border: 'rgba(239,68,68,0.3)' },
+      completada: { label: '🏆 Completada', color: 'rgba(250,204,21,0.15)', text: '#facc15', border: 'rgba(250,204,21,0.3)' },
+    };
+    const OBJETIVO_LABEL = {
+      perder_peso: 'Perder peso', ganar_masa: 'Ganar masa', mantener: 'Mantener', definicion: 'Definición'
+    };
+
+    function estadoBadgeHtml(estado) {
+      const b = ESTADO_BADGE[estado] || { label: estado, color: 'rgba(100,100,100,0.15)', text: '#aaa', border: 'rgba(100,100,100,0.3)' };
+      return `<span style="display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;background:${b.color};color:${b.text};border:1px solid ${b.border}">${b.label}</span>`;
+    }
+
+    async function loadDietas() {
+      const tbody = document.getElementById('dietas-tbody');
+      tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">⏳</div><p>Cargando...</p></div></td></tr>`;
+      try {
+        // Join dietas with clientes to get name/email
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/dietas_generadas?select=*,clientes(nombre,email)&order=created_at.desc&limit=200`, {
+          headers: getHeaders()
+        });
+        if (!res.ok) throw new Error(await res.text());
+        allDietas = await res.json();
+        updateDietasStats();
+        filterDietas();
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">❌</div><p>Error: ${e.message}</p></div></td></tr>`;
+      }
+    }
+
+    function updateDietasStats() {
+      document.getElementById('d-stat-total').textContent = allDietas.length;
+      document.getElementById('d-stat-revision').textContent = allDietas.filter(d => d.estado === 'en_revision').length;
+      document.getElementById('d-stat-aprobadas').textContent = allDietas.filter(d => ['aprobada', 'enviada'].includes(d.estado)).length;
+      document.getElementById('d-stat-canceladas').textContent = allDietas.filter(d => d.estado === 'cancelada').length;
+    }
+
+    function filterDietas() {
+      const q = (document.getElementById('d-search').value || '').toLowerCase();
+      const estado = document.getElementById('d-filter-estado').value;
+      const filtered = allDietas.filter(d => {
+        const nombre = (d.clientes?.nombre || '').toLowerCase();
+        const email = (d.clientes?.email || '').toLowerCase();
+        const matchQ = !q || nombre.includes(q) || email.includes(q);
+        const matchE = !estado || d.estado === estado;
+        return matchQ && matchE;
+      });
+      renderDietas(filtered);
+    }
+
+    function renderDietas(list) {
+      const tbody = document.getElementById('dietas-tbody');
+      document.getElementById('d-list-badge').textContent = list.length;
+      if (!list.length) {
+        tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🍽️</div><p>No hay dietas que mostrar</p></div></td></tr>`;
+        return;
+      }
+      tbody.innerHTML = list.map(d => {
+        const nombre = d.clientes?.nombre || '—';
+        const email = d.clientes?.email || '—';
+        const fecha = d.created_at ? new Date(d.created_at).toLocaleDateString('es-ES') : '—';
+        const obj = OBJETIVO_LABEL[d.objetivo] || d.objetivo || '—';
+        const cal = d.calorias_objetivo ? `${d.calorias_objetivo} kcal` : '—';
+        const rev = d.requiere_revision
+          ? `<span style="color:var(--yellow);font-size:12px">⚠️ ${(d.motivo_revision || '').substring(0, 40)}</span>`
+          : '<span style="color:var(--muted);font-size:12px">—</span>';
+        return `<tr>
+          <td style="font-weight:500">${nombre}</td>
+          <td style="font-size:13px;color:var(--muted)">${email}</td>
+          <td style="font-size:13px">${obj}</td>
+          <td style="font-size:13px">${cal}</td>
+          <td>${estadoBadgeHtml(d.estado)}</td>
+          <td>${rev}</td>
+          <td style="font-size:12px;color:var(--muted)">${fecha}</td>
+          <td style="text-align:center">
+            <button class="btn btn-secondary" onclick="openDietaModal('${d.id}')"
+              style="padding:6px 12px;font-size:12px">👁 Ver / Editar</button>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    function openDietaModal(dietaId) {
+      const dieta = allDietas.find(d => d.id === dietaId);
+      if (!dieta) return;
+      currentDieta = dieta;
+
+      const nombre = dieta.clientes?.nombre || '—';
+      const email = dieta.clientes?.email || '—';
+
+      document.getElementById('dm-title').textContent = `Dieta de ${nombre}`;
+
+      // Cliente info
+      document.getElementById('dm-cliente').innerHTML = [
+        ['Nombre', nombre], ['Email', email],
+        ['Objetivo', OBJETIVO_LABEL[dieta.objetivo] || dieta.objetivo || '—'],
+        ['Estado', estadoBadgeHtml(dieta.estado)],
+        ['Desviación kcal', dieta.desviacion_porcentaje != null ? dieta.desviacion_porcentaje + '%' : '—'],
+        ['Modelo IA', dieta.modelo_ia || '—'],
+      ].map(([k, v]) => `<div><span style="color:var(--muted);font-size:12px">${k}</span><div style="font-weight:500;margin-top:2px">${v}</div></div>`).join('');
+
+      // Macros
+      document.getElementById('dm-macros').innerHTML = [
+        ['Calorías', dieta.calorias_objetivo ? dieta.calorias_objetivo + ' kcal' : '—'],
+        ['Proteínas', dieta.proteinas_objetivo ? dieta.proteinas_objetivo + 'g' : '—'],
+        ['Carbos', dieta.carbohidratos_objetivo ? dieta.carbohidratos_objetivo + 'g' : '—'],
+        ['Grasas', dieta.grasas_objetivo ? dieta.grasas_objetivo + 'g' : '—'],
+      ].map(([k, v]) => `<div style="background:rgba(251, 95, 171,0.08);border-radius:8px;padding:10px">
+          <div style="font-size:18px;font-weight:700;color:var(--pink)">${v}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${k}</div>
+        </div>`).join('');
+
+      // Motivo revisión
+      const motivoWrap = document.getElementById('dm-motivo-wrap');
+      if (dieta.requiere_revision && dieta.motivo_revision) {
+        motivoWrap.style.display = 'block';
+        document.getElementById('dm-motivo').textContent = dieta.motivo_revision;
+      } else {
+        motivoWrap.style.display = 'none';
+      }
+
+      // ═══ RENDERIZAR PLAN COMPLETO ═══
+      renderPlanCompleto(dieta.plan_completo, false);
+
+      // Notas
+      document.getElementById('dm-notas').value = dieta.notas_nutricionista || '';
+      document.getElementById('dm-feedback').textContent = '';
+
+      // Ocultar botones si ya está enviada/cancelada/completada
+      const terminada = ['enviada', 'cancelada', 'completada'].includes(dieta.estado);
+      document.getElementById('dm-btn-enviar').style.display = terminada ? 'none' : 'flex';
+      document.getElementById('dm-btn-regenerar').style.display = terminada ? 'none' : 'flex';
+      document.getElementById('dm-btn-rechazar').style.display = terminada ? 'none' : 'flex';
+      document.getElementById('dm-btn-editar').style.display = terminada ? 'none' : 'inline-flex';
+
+      document.getElementById('dieta-modal').classList.add('open');
+    }
+
+    function closeDietaModal() {
+      document.getElementById('dieta-modal').classList.remove('open');
+      currentDieta = null;
+      editMode = false;
+    }
+
+    async function guardarNotasDieta() {
+      if (!currentDieta) return;
+      const notas = document.getElementById('dm-notas').value;
+      const fb = document.getElementById('dm-feedback');
+      fb.textContent = 'Guardando...';
+      fb.style.color = 'var(--muted)';
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/dietas_generadas?id=eq.${currentDieta.id}`, {
+          method: 'PATCH',
+          headers: { ...getHeaders(), 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ notas_nutricionista: notas, updated_at: new Date().toISOString() })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        currentDieta.notas_nutricionista = notas;
+        const idx = allDietas.findIndex(d => d.id === currentDieta.id);
+        if (idx !== -1) allDietas[idx].notas_nutricionista = notas;
+        fb.textContent = '✅ Notas guardadas';
+        fb.style.color = 'var(--pink)';
+      } catch (e) {
+        fb.textContent = '❌ Error: ' + e.message;
+        fb.style.color = 'var(--red)';
+      }
+    }
+
+    // ═══ RENDERIZAR PLAN COMPLETO (JSON → HTML) ═══
+    let editMode = false;
+    function renderPlanCompleto(planRaw, editable) {
+      const container = document.getElementById('dm-plan-content');
+
+      // 1. Parse: plan_completo puede ser string JSON dentro de JSONB
+      let plan = planRaw;
+      if (typeof plan === 'string') {
+        try { plan = JSON.parse(plan); } catch (_) { }
+      }
+      if (typeof plan === 'string') {
+        try { plan = JSON.parse(plan); } catch (_) { } // double-encoded
+      }
+      if (!plan || typeof plan !== 'object') {
+        container.innerHTML = '<div style="color:var(--muted);text-align:center;padding:20px">No hay plan generado aún.</div>';
+        return;
+      }
+
+      // 2. Normalizar estructura: soporta múltiples formatos que Claude puede generar
+      //    - {semanas: [{dias: [{nombre_dia, comidas}]}]}  ← el real
+      //    - {plan_semanal: [{dia, comidas}]}
+      //    - {dias: [{dia, comidas}]}
+      let dias = [];
+      if (plan.semanas && Array.isArray(plan.semanas)) {
+        // Estructura real: aplanar semanas → días
+        plan.semanas.forEach(semana => {
+          (semana.dias || []).forEach(d => {
+            dias.push({ dia: d.nombre_dia || d.dia || ('Día ' + (d.dia || dias.length + 1)), comidas: d.comidas || [] });
+          });
+        });
+      } else if (plan.plan_semanal && Array.isArray(plan.plan_semanal)) {
+        dias = plan.plan_semanal;
+      } else if (plan.dias && Array.isArray(plan.dias)) {
+        dias = plan.dias;
+      }
+
+      if (!dias.length) {
+        // Fallback: mostrar JSON crudo
+        container.innerHTML = `<pre style="background:var(--surface2);padding:12px;border-radius:8px;overflow-x:auto;font-size:12px;max-height:400px">${JSON.stringify(plan, null, 2)}</pre>`;
+        return;
+      }
+
+      let html = '';
+      dias.forEach((dia, di) => {
+        html += `<div style="background:var(--surface2);border-radius:10px;padding:14px;margin-bottom:12px">`;
+        html += `<div style="font-weight:700;font-size:15px;color:var(--pink);margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:6px">${dia.dia || 'Día ' + (di + 1)}</div>`;
+        const comidas = dia.comidas || [];
+        comidas.forEach((c, ci) => {
+          const nombre = c.nombre || c.tipo || 'Comida';
+          const ings = (c.ingredientes || []).map(i =>
+            typeof i === 'string' ? i : `${i.nombre || ''} ${i.cantidad || ''} ${i.unidad || ''}`.trim()
+          );
+          html += `<div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:12px;margin-bottom:8px;border:1px solid rgba(255,255,255,0.05)">`;
+          if (editable) {
+            html += `<input type="text" value="${nombre}" data-dia="${di}" data-comida="${ci}" data-field="nombre" style="font-weight:600;font-size:14px;background:var(--surface1);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:4px 8px;width:100%;margin-bottom:6px;color:var(--text)"/>`;
+            html += `<div style="font-size:12px;color:var(--muted);margin-bottom:4px">Ingredientes (uno por línea):</div>`;
+            html += `<textarea data-dia="${di}" data-comida="${ci}" data-field="ingredientes" style="font-size:13px;width:100%;min-height:50px;background:var(--surface1);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:6px 8px;color:var(--text)">${ings.join('\n')}</textarea>`;
+            html += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:6px">`;
+            html += `<div><label style="font-size:10px;color:var(--muted)">Kcal</label><input type="number" data-dia="${di}" data-comida="${ci}" data-field="calorias" value="${c.calorias || 0}" style="width:100%;background:var(--surface1);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:3px 6px;font-size:13px;color:var(--text)"/></div>`;
+            html += `<div><label style="font-size:10px;color:var(--muted)">Prot(g)</label><input type="number" data-dia="${di}" data-comida="${ci}" data-field="proteinas" value="${c.proteinas || 0}" style="width:100%;background:var(--surface1);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:3px 6px;font-size:13px;color:var(--text)"/></div>`;
+            html += `<div><label style="font-size:10px;color:var(--muted)">Carb(g)</label><input type="number" data-dia="${di}" data-comida="${ci}" data-field="carbohidratos" value="${c.carbohidratos || 0}" style="width:100%;background:var(--surface1);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:3px 6px;font-size:13px;color:var(--text)"/></div>`;
+            html += `<div><label style="font-size:10px;color:var(--muted)">Gras(g)</label><input type="number" data-dia="${di}" data-comida="${ci}" data-field="grasas" value="${c.grasas || 0}" style="width:100%;background:var(--surface1);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:3px 6px;font-size:13px;color:var(--text)"/></div>`;
+            html += `</div>`;
+          } else {
+            html += `<div style="font-weight:600;font-size:14px;margin-bottom:4px">🍽️ ${nombre}</div>`;
+            if (ings.length) html += `<div style="font-size:13px;color:var(--muted);margin-bottom:4px">Ingredientes: ${ings.join(', ')}</div>`;
+            html += `<div style="font-size:12px;color:var(--muted)">${c.calorias || 0} kcal · P: ${c.proteinas || 0}g · C: ${c.carbohidratos || 0}g · G: ${c.grasas || 0}g</div>`;
+          }
+          html += `</div>`;
+        });
+        html += `</div>`;
+      });
+
+      if (editable) {
+        html += `<div style="text-align:center;margin-top:8px">
+          <button class="btn" onclick="guardarPlanEditado()" style="background:#FB5FAB;color:#000;padding:8px 24px">💾 Guardar cambios del plan</button>
+          <button class="btn btn-secondary" onclick="toggleEditMode()" style="margin-left:8px;padding:8px 16px">Cancelar</button>
+        </div>`;
+      }
+      container.innerHTML = html;
+    }
+
+    function toggleEditMode() {
+      if (!currentDieta) return;
+      editMode = !editMode;
+      document.getElementById('dm-btn-editar').textContent = editMode ? '👁 Ver' : '✏️ Modificar';
+      renderPlanCompleto(currentDieta.plan_completo, editMode);
+    }
+
+    async function guardarPlanEditado() {
+      if (!currentDieta || !currentDieta.plan_completo) return;
+      const fb = document.getElementById('dm-feedback');
+      fb.textContent = 'Guardando plan...';
+      fb.style.color = 'var(--muted)';
+
+      // Collect edited values from inputs
+      const plan = JSON.parse(JSON.stringify(currentDieta.plan_completo));
+      let dias = [];
+      if (plan.semanas && Array.isArray(plan.semanas)) {
+        plan.semanas.forEach(semana => (semana.dias || []).forEach(d => dias.push(d)));
+      } else {
+        dias = plan.plan_semanal || plan.dias || [];
+      }
+
+      document.querySelectorAll('#dm-plan-content input[data-dia], #dm-plan-content textarea[data-dia]').forEach(el => {
+        const di = parseInt(el.dataset.dia);
+        const ci = parseInt(el.dataset.comida);
+        const field = el.dataset.field;
+        if (!dias[di] || !dias[di].comidas || !dias[di].comidas[ci]) return;
+        const comida = dias[di].comidas[ci];
+        if (field === 'ingredientes') {
+          comida.ingredientes = el.value.split('\n').map(s => s.trim()).filter(Boolean);
+        } else if (['calorias', 'proteinas', 'carbohidratos', 'grasas'].includes(field)) {
+          comida[field] = parseFloat(el.value) || 0;
+        } else {
+          comida[field] = el.value;
+        }
+      });
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/dietas_generadas?id=eq.${currentDieta.id}`, {
+          method: 'PATCH',
+          headers: { ...getHeaders(), 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ plan_completo: plan, updated_at: new Date().toISOString() })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        currentDieta.plan_completo = plan;
+        const idx = allDietas.findIndex(d => d.id === currentDieta.id);
+        if (idx !== -1) allDietas[idx].plan_completo = plan;
+        editMode = false;
+        document.getElementById('dm-btn-editar').textContent = '✏️ Modificar';
+        renderPlanCompleto(plan, false);
+        fb.textContent = '✅ Plan modificado y guardado en Supabase';
+        fb.style.color = 'var(--pink)';
+        showToast('Plan nutricional modificado', 'success');
+      } catch (e) {
+        fb.textContent = '❌ Error al guardar: ' + e.message;
+        fb.style.color = 'var(--red)';
+      }
+    }
+
+    // ═══ ENVIAR AL CLIENTE VÍA WEBHOOK N8N ═══
+    const N8N_URL = 'https://n8n.srv964210.hstgr.cloud';
+
+    const N8N_WEBHOOK_TOKEN = 'G2FIT-SEND-a7f3c92d4e8b1';
+
+    // Dispara un GET al webhook con autenticación por cabecera.
+    async function dispararWebhook(url) {
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: { 'X-G2Fit-Token': N8N_WEBHOOK_TOKEN }
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`Webhook error ${res.status}: ${body}`);
+      }
+      return res;
+    }
+
+    async function enviarDietaWebhook() {
+      if (!currentDieta) return;
+      if (!confirm(`¿Enviar el plan nutricional a ${currentDieta.clientes?.email || 'el cliente'}?`)) return;
+      const fb = document.getElementById('dm-feedback');
+      fb.textContent = 'Enviando al cliente...';
+      fb.style.color = 'var(--muted)';
+
+      // Guardar notas si han cambiado
+      const notas = document.getElementById('dm-notas').value;
+
+      try {
+        // Si hay edición activa sin guardar, guardar primero para que WF3 reciba la versión editada
+      if (editMode) {
+        await guardarPlanEditado();
+      }
+
+      // 1. Disparar webhook n8n con autenticación por cabecera
+      await dispararWebhook(`${N8N_URL}/webhook/g2fit-send?dieta_id=${currentDieta.id}`);
+
+        // 2. Actualizar Supabase directamente (esto SÍ funciona sin CORS)
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/dietas_generadas?id=eq.${currentDieta.id}`, {
+          method: 'PATCH',
+          headers: { ...getHeaders(), 'Prefer': 'return=minimal' },
+          body: JSON.stringify({
+            estado: 'enviada',
+            notas_nutricionista: notas,
+            fecha_envio: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+        });
+        if (!res.ok) throw new Error(await res.text());
+
+        // 3. Actualizar UI
+        currentDieta.estado = 'enviada';
+        currentDieta.notas_nutricionista = notas;
+        const idx = allDietas.findIndex(d => d.id === currentDieta.id);
+        if (idx !== -1) { allDietas[idx].estado = 'enviada'; allDietas[idx].notas_nutricionista = notas; }
+
+        fb.textContent = '✅ ¡Dieta enviada! Se ha disparado el email al cliente via n8n.';
+        fb.style.color = 'var(--pink)';
+        document.getElementById('dm-btn-enviar').style.display = 'none';
+        document.getElementById('dm-btn-regenerar').style.display = 'none';
+        document.getElementById('dm-btn-rechazar').style.display = 'none';
+        document.getElementById('dm-btn-editar').style.display = 'none';
+        updateDietasStats();
+        filterDietas();
+        showToast(`✅ Plan enviado a ${currentDieta.clientes?.email || 'cliente'}`, 'success');
+      } catch (e) {
+        fb.textContent = '❌ Error: ' + e.message;
+        fb.style.color = 'var(--red)';
+      }
+    }
+
+    // ═══ REGENERAR DIETA VÍA WEBHOOK N8N ═══
+    async function regenerarDietaWebhook() {
+      if (!currentDieta) return;
+      if (!confirm(`¿Generar una nueva dieta para ${currentDieta.clientes?.nombre || 'este cliente'}? La dieta actual se cancelará.`)) return;
+      const fb = document.getElementById('dm-feedback');
+      fb.textContent = 'Solicitando regeneración...';
+      fb.style.color = 'var(--muted)';
+      try {
+        // 1. Disparar webhook regenerar con autenticación por cabecera
+        await dispararWebhook(`${N8N_URL}/webhook/regenerar-dieta?dieta_id=${currentDieta.id}`);
+
+        // 2. Marcar la dieta actual como cancelada en Supabase
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/dietas_generadas?id=eq.${currentDieta.id}`, {
+          method: 'PATCH',
+          headers: { ...getHeaders(), 'Prefer': 'return=minimal' },
+          body: JSON.stringify({
+            estado: 'cancelada',
+            notas_nutricionista: 'Cancelada para regeneración el ' + new Date().toLocaleDateString('es-ES'),
+            updated_at: new Date().toISOString()
+          })
+        });
+        if (!res.ok) throw new Error(await res.text());
+
+        // 3. Actualizar UI
+        currentDieta.estado = 'cancelada';
+        const idx = allDietas.findIndex(d => d.id === currentDieta.id);
+        if (idx !== -1) allDietas[idx].estado = 'cancelada';
+        fb.textContent = '🔄 Regeneración solicitada. Recibirás un aviso cuando la nueva dieta esté lista.';
+        fb.style.color = '#818cf8';
+        document.getElementById('dm-btn-enviar').style.display = 'none';
+        document.getElementById('dm-btn-regenerar').style.display = 'none';
+        document.getElementById('dm-btn-rechazar').style.display = 'none';
+        updateDietasStats();
+        filterDietas();
+        showToast('🔄 Nueva dieta en generación...', 'info');
+      } catch (e) {
+        fb.textContent = '❌ Error: ' + e.message;
+        fb.style.color = 'var(--red)';
+      }
+    }
+
+    async function rechazarDieta() {
+      if (!currentDieta) return;
+      if (!confirm(`¿Seguro que quieres rechazar y cancelar la dieta de ${currentDieta.clientes?.nombre || 'este cliente'}?`)) return;
+      const fb = document.getElementById('dm-feedback');
+      fb.textContent = 'Procesando...';
+      fb.style.color = 'var(--muted)';
+      try {
+        const notas = document.getElementById('dm-notas').value;
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/dietas_generadas?id=eq.${currentDieta.id}`, {
+          method: 'PATCH',
+          headers: { ...getHeaders(), 'Prefer': 'return=minimal' },
+          body: JSON.stringify({
+            estado: 'cancelada',
+            notas_nutricionista: notas,
+            updated_at: new Date().toISOString()
+          })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const idx = allDietas.findIndex(d => d.id === currentDieta.id);
+        if (idx !== -1) { allDietas[idx].estado = 'cancelada'; }
+        currentDieta.estado = 'cancelada';
+        fb.textContent = '❌ Dieta rechazada y marcada como cancelada.';
+        fb.style.color = 'var(--red)';
+        document.getElementById('dm-btn-enviar').style.display = 'none';
+        document.getElementById('dm-btn-regenerar').style.display = 'none';
+        document.getElementById('dm-btn-rechazar').style.display = 'none';
+        updateDietasStats();
+        filterDietas();
+        showToast(`Dieta cancelada`, 'error');
+      } catch (e) {
+        fb.textContent = '❌ Error: ' + e.message;
+        fb.style.color = 'var(--red)';
+      }
+    }
+
+    // Auto-cargar dietas cuando se activa tab
+    document.getElementById('tab-dietas').addEventListener('click', function () {
+      if (allDietas.length === 0) loadDietas();
+    });
+
+    // Cerrar modal al hacer click fuera
+    document.getElementById('dieta-modal').addEventListener('click', function (e) {
+      if (e.target === this) closeDietaModal();
+    });
+    // ── DEEP-LINK: soporta ?tab=dietas&dieta_id=XXX desde email de n8n ──────────
+    (function handleUrlParams() {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      const dietaId = params.get('dieta_id');
+
+      if (tabParam === 'dietas') {
+        // Activa el tab de dietas y carga las dietas
+        const tabBtn = document.getElementById('tab-dietas');
+        switchTab('dietas', tabBtn);
+
+        if (dietaId) {
+          // Espera a que las dietas se carguen y luego abre la dieta específica
+          const tryOpenDieta = (attempts) => {
+            if (attempts <= 0) return;
+            const found = allDietas.find(d => d.id === dietaId);
+            if (found) {
+              openDietaModal(dietaId);
+              // Resalta la fila en la tabla
+              try {
+                const rows = document.querySelectorAll('#dietas-tbody tr');
+                rows.forEach(row => {
+                  if (row.innerHTML.includes(dietaId)) {
+                    row.style.background = 'rgba(251, 95, 171,0.1)';
+                    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                });
+              } catch (_) { }
+            } else {
+              // Las dietas aún no están cargadas, esperar
+              setTimeout(() => tryOpenDieta(attempts - 1), 500);
+            }
+          };
+          // Dar tiempo a loadDietas() para terminar
+          setTimeout(() => tryOpenDieta(10), 800);
+        }
+      }
+    })();
+  </script>
+</body>
+
+</html>

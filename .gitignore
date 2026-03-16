@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Claude local settings
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
