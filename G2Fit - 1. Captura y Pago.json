@@ -184,7 +184,15 @@
             }
           ]
         },
-        "options": {}
+        "options": {},
+        "body": {
+          "parameters": [
+            {
+              "name": "allow_promotion_codes",
+              "value": "true"
+            }
+          ]
+        }
       },
       "id": "f0d24e86-f5ee-46d9-825b-ada8e5d25f6b",
       "name": "Stripe - Crear Sesión Pago",
