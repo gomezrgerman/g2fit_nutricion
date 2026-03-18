@@ -3513,10 +3513,8 @@ ${trimmed}`;
       const notas = document.getElementById('dm-notas').value;
 
       try {
-        // Si hay edición activa sin guardar, guardar primero para que WF3 reciba la versión editada
-      if (editMode) {
-        await guardarPlanEditado();
-      }
+        // Guardar siempre antes de enviar (por si hay ediciones pendientes o editMode ya cerrado)
+      await guardarPlanEditado();
 
       // 1. Disparar webhook n8n con autenticación por cabecera
       await dispararWebhook(`${N8N_URL}/webhook/g2fit-send?dieta_id=${currentDieta.id}`);
