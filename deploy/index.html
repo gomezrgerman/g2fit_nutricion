@@ -3473,10 +3473,12 @@ ${trimmed}`;
       try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/dietas_generadas?id=eq.${currentDieta.id}`, {
           method: 'PATCH',
-          headers: { ...getHeaders(), 'Prefer': 'return=minimal' },
+          headers: { ...getHeaders(), 'Prefer': 'return=representation' },
           body: JSON.stringify({ plan_completo: plan, updated_at: new Date().toISOString() })
         });
         if (!res.ok) throw new Error(await res.text());
+        const updated = await res.json();
+        if (!updated || updated.length === 0) throw new Error('Supabase no actualizó ninguna fila. Comprueba que RLS está desactivado en dietas_generadas.');
         currentDieta.plan_completo = plan;
         const idx = allDietas.findIndex(d => d.id === currentDieta.id);
         if (idx !== -1) allDietas[idx].plan_completo = plan;
