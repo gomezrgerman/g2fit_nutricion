@@ -106,7 +106,7 @@
         "conditions": {
           "options": {
             "caseSensitive": true,
-            "typeValidation": "strict"
+            "typeValidation": "loose"
           },
           "conditions": [
             {
@@ -116,6 +116,15 @@
               "operator": {
                 "type": "string",
                 "operation": "equals"
+              }
+            },
+            {
+              "id": "check-not-preview",
+              "leftValue": "={{ $('Webhook - Recibir Solicitud1').first().json.query.preview }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
               }
             }
           ],
@@ -170,8 +179,8 @@
     },
     {
       "parameters": {
-        "sendTo": "={{ $json.cliente_email }}",
-        "subject": "={{ $json.cliente_nombre }}, aquí está tu Plan Nutricional — G2Fit Nutrición",
+        "sendTo": "={{ $('Webhook - Recibir Solicitud1').first().json.query.preview === 'true' ? 'lydia.dietista.denia@gmail.com' : $json.cliente_email }}",
+        "subject": "={{ $('Webhook - Recibir Solicitud1').first().json.query.preview === 'true' ? '[PREVIEW NUTRICIONISTA] ' + $json.cliente_nombre + ' — Plan Nutricional G2Fit' : $json.cliente_nombre + ', aquí está tu Plan Nutricional — G2Fit Nutrición' }}",
         "message": "={{ $json.html_email }}",
         "options": {
           "attachmentsUi": {
@@ -233,6 +242,37 @@
           "name": "Supabase account"
         }
       }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "check-preview-flag",
+              "leftValue": "={{ $('Webhook - Recibir Solicitud1').first().json.query.preview }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-es-preview-node",
+      "name": "IF - Es Preview",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        300
+      ]
     }
   ],
   "pinData": {},
@@ -322,6 +362,18 @@
     },
     "Gmail - Enviar Plan Al Cliente1": {
       "main": [
+        [
+          {
+            "node": "IF - Es Preview",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Es Preview": {
+      "main": [
+        [],
         [
           {
             "node": "Supabase - Marcar Enviada1",

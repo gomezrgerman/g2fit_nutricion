@@ -1841,8 +1841,10 @@
         </div>
         <!-- Botones de accion -->
         <div style="display:flex;gap:10px;flex-wrap:wrap" id="dm-actions">
-          <button class="btn" id="dm-btn-enviar" style="background:#FB5FAB;color:#000;flex:1"
-            onclick="enviarDietaWebhook()">✅ Enviar al cliente</button>
+          <button class="btn" id="dm-btn-preview" style="background:#f59e0b;color:#000;flex:1"
+            onclick="previsualizarEmail()">👁 Previsualizar email</button>
+          <button class="btn" id="dm-btn-enviar" style="background:#FB5FAB;color:#000;flex:1;opacity:0.4;cursor:not-allowed"
+            onclick="enviarDietaWebhook()" disabled>✅ Enviar al cliente</button>
           <button class="btn" id="dm-btn-regenerar"
             style="background:rgba(99,102,241,0.15);color:#818cf8;border:1px solid rgba(99,102,241,0.3);flex:1"
             onclick="regenerarDietaWebhook()">🔄 Generar de nuevo</button>
@@ -3309,6 +3311,12 @@ ${trimmed}`;
       document.getElementById('dm-btn-regenerar').style.display = terminada ? 'none' : 'flex';
       document.getElementById('dm-btn-rechazar').style.display = terminada ? 'none' : 'flex';
       document.getElementById('dm-btn-editar').style.display = terminada ? 'none' : 'inline-flex';
+      document.getElementById('dm-btn-preview').style.display = terminada ? 'none' : 'flex';
+      // Resetear estado preview al abrir una dieta: enviar bloqueado hasta previsualizar
+      const btnEnviar = document.getElementById('dm-btn-enviar');
+      const btnPreview = document.getElementById('dm-btn-preview');
+      btnEnviar.disabled = true; btnEnviar.style.opacity = '0.4'; btnEnviar.style.cursor = 'not-allowed';
+      btnPreview.disabled = false;
 
       document.getElementById('dieta-modal').classList.add('open');
     }
@@ -3500,6 +3508,29 @@ ${trimmed}`;
         throw new Error(`Webhook error ${res.status}: ${body}`);
       }
       return res;
+    }
+
+    async function previsualizarEmail() {
+      if (!currentDieta) return;
+      const fb = document.getElementById('dm-feedback');
+      const btnPreview = document.getElementById('dm-btn-preview');
+      const btnEnviar = document.getElementById('dm-btn-enviar');
+      fb.textContent = 'Generando preview...';
+      fb.style.color = 'var(--muted)';
+      btnPreview.disabled = true;
+      try {
+        await guardarPlanEditado();
+        await dispararWebhook(`${N8N_URL}/webhook/g2fit-send?dieta_id=${currentDieta.id}&preview=true`);
+        fb.textContent = 'Preview enviado a tu email. Revisalo y si esta bien pulsa Enviar al cliente.';
+        fb.style.color = '#f59e0b';
+        btnEnviar.disabled = false;
+        btnEnviar.style.opacity = '1';
+        btnEnviar.style.cursor = 'pointer';
+      } catch(e) {
+        fb.textContent = 'Error enviando preview: ' + e.message;
+        fb.style.color = 'var(--red)';
+        btnPreview.disabled = false;
+      }
     }
 
     async function enviarDietaWebhook() {
