@@ -3447,7 +3447,11 @@ ${trimmed}`;
       fb.style.color = 'var(--muted)';
 
       // Collect edited values from inputs
-      const plan = JSON.parse(JSON.stringify(currentDieta.plan_completo));
+      // Parse plan_completo correctly: Supabase can return it as a JSON string
+      let planRaw = currentDieta.plan_completo;
+      if (typeof planRaw === 'string') { try { planRaw = JSON.parse(planRaw); } catch(_) {} }
+      if (typeof planRaw === 'string') { try { planRaw = JSON.parse(planRaw); } catch(_) {} }
+      const plan = JSON.parse(JSON.stringify(planRaw)); // deep clone
       let dias = [];
       if (plan.semanas && Array.isArray(plan.semanas)) {
         plan.semanas.forEach(semana => (semana.dias || []).forEach(d => dias.push(d)));
