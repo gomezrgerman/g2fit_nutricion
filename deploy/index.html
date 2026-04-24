@@ -1841,10 +1841,8 @@
         </div>
         <!-- Botones de accion -->
         <div style="display:flex;gap:10px;flex-wrap:wrap" id="dm-actions">
-          <button class="btn" id="dm-btn-preview" style="background:#f59e0b;color:#000;flex:1"
-            onclick="previsualizarEmail()">👁 Previsualizar email</button>
-          <button class="btn" id="dm-btn-enviar" style="background:#FB5FAB;color:#000;flex:1;opacity:0.4;cursor:not-allowed"
-            onclick="enviarDietaWebhook()" disabled>✅ Enviar al cliente</button>
+          <button class="btn" id="dm-btn-enviar" style="background:#FB5FAB;color:#000;flex:1"
+            onclick="enviarDietaWebhook()">✅ Enviar al cliente</button>
           <button class="btn" id="dm-btn-regenerar"
             style="background:rgba(99,102,241,0.15);color:#818cf8;border:1px solid rgba(99,102,241,0.3);flex:1"
             onclick="regenerarDietaWebhook()">🔄 Generar de nuevo</button>
@@ -1949,7 +1947,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
   <script>
 
-        // ==========================================
+    // ==========================================
     // CONFIG
     // ==========================================
     const SUPABASE_URL = 'https://blardvkldwwbhgdmsxhd.supabase.co';
@@ -1960,15 +1958,6 @@
 
     // Limpiar cualquier service_role key antigua que pudiera estar guardada
     localStorage.removeItem('g2fit_service_key');
-
-    function getHeaders() {
-      return {
-        'apikey': SERVICE_KEY,
-        'Authorization': `Bearer ${SERVICE_KEY}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation'
-      };
-    }
 
     // ==========================================
     // AUTENTICACION
@@ -2019,13 +2008,20 @@
         return;
       }
 
-      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-      if (error) {
-        errorEl.textContent = 'Email o contrasena incorrectos. (' + error.message + ')';
+      try {
+        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (error) {
+          errorEl.textContent = 'Email o contraseña incorrectos.';
+          btn.disabled = false;
+          btn.textContent = 'Entrar';
+        } else {
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          showApp(session.user.email);
+        }
+      } catch (err) {
+        errorEl.textContent = 'Error de conexión. Inténtalo de nuevo.';
         btn.disabled = false;
         btn.textContent = 'Entrar';
-      } else {
-        showApp(data.user.email);
       }
     }
 
@@ -2034,8 +2030,17 @@
       showLogin();
     }
 
+    // Verificar autenticacion al cargar
     checkAuth();
 
+    function getHeaders() {
+      return {
+        'apikey': SERVICE_KEY,
+        'Authorization': `Bearer ${SERVICE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      };
+    }
 
     function openConfig() {
       document.getElementById('cfg-anthropic').value = ANTHROPIC_KEY || '';
@@ -3311,12 +3316,6 @@ ${trimmed}`;
       document.getElementById('dm-btn-regenerar').style.display = terminada ? 'none' : 'flex';
       document.getElementById('dm-btn-rechazar').style.display = terminada ? 'none' : 'flex';
       document.getElementById('dm-btn-editar').style.display = terminada ? 'none' : 'inline-flex';
-      document.getElementById('dm-btn-preview').style.display = terminada ? 'none' : 'flex';
-      // Resetear estado preview al abrir una dieta: enviar bloqueado hasta previsualizar
-      const btnEnviar = document.getElementById('dm-btn-enviar');
-      const btnPreview = document.getElementById('dm-btn-preview');
-      btnEnviar.disabled = true; btnEnviar.style.opacity = '0.4'; btnEnviar.style.cursor = 'not-allowed';
-      btnPreview.disabled = false;
 
       document.getElementById('dieta-modal').classList.add('open');
     }
@@ -3405,9 +3404,12 @@ ${trimmed}`;
           );
           html += `<div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:12px;margin-bottom:8px;border:1px solid rgba(255,255,255,0.05)">`;
           if (editable) {
+            const preps = (c.preparacion || []).map(p => typeof p === 'string' ? p : '');
             html += `<input type="text" value="${nombre}" data-dia="${di}" data-comida="${ci}" data-field="nombre" style="font-weight:600;font-size:14px;background:var(--surface1);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:4px 8px;width:100%;margin-bottom:6px;color:var(--text)"/>`;
-            html += `<div style="font-size:12px;color:var(--muted);margin-bottom:4px">Ingredientes (uno por línea):</div>`;
-            html += `<textarea data-dia="${di}" data-comida="${ci}" data-field="ingredientes" style="font-size:13px;width:100%;min-height:50px;background:var(--surface1);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:6px 8px;color:var(--text)">${ings.join('\n')}</textarea>`;
+            html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">`;
+            html += `<div><div style="font-size:12px;color:var(--muted);margin-bottom:4px">Ingredientes (uno por línea):</div><textarea data-dia="${di}" data-comida="${ci}" data-field="ingredientes" style="font-size:13px;width:100%;min-height:80px;background:var(--surface1);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:6px 8px;color:var(--text)">${ings.join('\n')}</textarea></div>`;
+            html += `<div><div style="font-size:12px;color:var(--muted);margin-bottom:4px">Elaboración (un paso por línea):</div><textarea data-dia="${di}" data-comida="${ci}" data-field="preparacion" style="font-size:13px;width:100%;min-height:80px;background:var(--surface1);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:6px 8px;color:var(--text)">${preps.join('\n')}</textarea></div>`;
+            html += `</div>`;
             html += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:6px">`;
             html += `<div><label style="font-size:10px;color:var(--muted)">Kcal</label><input type="number" data-dia="${di}" data-comida="${ci}" data-field="calorias" value="${c.calorias || 0}" style="width:100%;background:var(--surface1);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:3px 6px;font-size:13px;color:var(--text)"/></div>`;
             html += `<div><label style="font-size:10px;color:var(--muted)">Prot(g)</label><input type="number" data-dia="${di}" data-comida="${ci}" data-field="proteinas" value="${c.proteinas || 0}" style="width:100%;background:var(--surface1);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:3px 6px;font-size:13px;color:var(--text)"/></div>`;
@@ -3415,8 +3417,14 @@ ${trimmed}`;
             html += `<div><label style="font-size:10px;color:var(--muted)">Gras(g)</label><input type="number" data-dia="${di}" data-comida="${ci}" data-field="grasas" value="${c.grasas || 0}" style="width:100%;background:var(--surface1);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:3px 6px;font-size:13px;color:var(--text)"/></div>`;
             html += `</div>`;
           } else {
+            const prepsView = (c.preparacion || []).filter(Boolean);
             html += `<div style="font-weight:600;font-size:14px;margin-bottom:4px">🍽️ ${nombre}</div>`;
-            if (ings.length) html += `<div style="font-size:13px;color:var(--muted);margin-bottom:4px">Ingredientes: ${ings.join(', ')}</div>`;
+            if (ings.length || prepsView.length) {
+              html += `<div style="display:grid;grid-template-columns:${prepsView.length ? '1fr 1fr' : '1fr'};gap:12px;margin-bottom:6px">`;
+              if (ings.length) html += `<div><div style="font-size:11px;color:var(--pink);font-weight:600;margin-bottom:2px">INGREDIENTES</div><div style="font-size:13px;color:var(--muted)">${ings.join(', ')}</div></div>`;
+              if (prepsView.length) html += `<div><div style="font-size:11px;color:var(--pink);font-weight:600;margin-bottom:2px">ELABORACIÓN</div><ol style="margin:0;padding-left:16px;font-size:12px;color:var(--muted)">${prepsView.map(p => `<li>${p}</li>`).join('')}</ol></div>`;
+              html += `</div>`;
+            }
             html += `<div style="font-size:12px;color:var(--muted)">${c.calorias || 0} kcal · P: ${c.proteinas || 0}g · C: ${c.carbohidratos || 0}g · G: ${c.grasas || 0}g</div>`;
           }
           html += `</div>`;
@@ -3446,17 +3454,23 @@ ${trimmed}`;
       fb.textContent = 'Guardando plan...';
       fb.style.color = 'var(--muted)';
 
-      // Collect edited values from inputs
-      // Parse plan_completo correctly: Supabase can return it as a JSON string
-      let planRaw = currentDieta.plan_completo;
-      if (typeof planRaw === 'string') { try { planRaw = JSON.parse(planRaw); } catch(_) {} }
-      if (typeof planRaw === 'string') { try { planRaw = JSON.parse(planRaw); } catch(_) {} }
-      const plan = JSON.parse(JSON.stringify(planRaw)); // deep clone
+      // Parsear igual que renderPlanCompleto — plan_completo puede venir como string o doble-encoded
+      let planParsed = currentDieta.plan_completo;
+      if (typeof planParsed === 'string') { try { planParsed = JSON.parse(planParsed); } catch (_) {} }
+      if (typeof planParsed === 'string') { try { planParsed = JSON.parse(planParsed); } catch (_) {} }
+      const plan = JSON.parse(JSON.stringify(planParsed)); // deep copy del objeto ya parseado
+
       let dias = [];
       if (plan.semanas && Array.isArray(plan.semanas)) {
         plan.semanas.forEach(semana => (semana.dias || []).forEach(d => dias.push(d)));
       } else {
         dias = plan.plan_semanal || plan.dias || [];
+      }
+
+      if (!dias.length) {
+        fb.textContent = '❌ No se pudo parsear el plan. Recarga la página e inténtalo de nuevo.';
+        fb.style.color = 'var(--red)';
+        return;
       }
 
       document.querySelectorAll('#dm-plan-content input[data-dia], #dm-plan-content textarea[data-dia]').forEach(el => {
@@ -3467,6 +3481,8 @@ ${trimmed}`;
         const comida = dias[di].comidas[ci];
         if (field === 'ingredientes') {
           comida.ingredientes = el.value.split('\n').map(s => s.trim()).filter(Boolean);
+        } else if (field === 'preparacion') {
+          comida.preparacion = el.value.split('\n').map(s => s.trim()).filter(Boolean);
         } else if (['calorias', 'proteinas', 'carbohidratos', 'grasas'].includes(field)) {
           comida[field] = parseFloat(el.value) || 0;
         } else {
@@ -3477,12 +3493,10 @@ ${trimmed}`;
       try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/dietas_generadas?id=eq.${currentDieta.id}`, {
           method: 'PATCH',
-          headers: { ...getHeaders(), 'Prefer': 'return=representation' },
+          headers: { ...getHeaders(), 'Prefer': 'return=minimal' },
           body: JSON.stringify({ plan_completo: plan, updated_at: new Date().toISOString() })
         });
         if (!res.ok) throw new Error(await res.text());
-        const updated = await res.json();
-        if (!updated || updated.length === 0) throw new Error('Supabase no actualizó ninguna fila. Comprueba que RLS está desactivado en dietas_generadas.');
         currentDieta.plan_completo = plan;
         const idx = allDietas.findIndex(d => d.id === currentDieta.id);
         if (idx !== -1) allDietas[idx].plan_completo = plan;
@@ -3496,6 +3510,217 @@ ${trimmed}`;
         fb.textContent = '❌ Error al guardar: ' + e.message;
         fb.style.color = 'var(--red)';
       }
+    }
+
+    // ═══ LISTA DE LA COMPRA — PREVIEW Y EDICIÓN ═══
+    let listaEditMode = false;
+
+    function _normIng(raw) {
+      let s = (typeof raw === 'string' ? raw : (raw.nombre || '')).trim().toLowerCase();
+      // Quantities at start
+      s = s.replace(/^[\d.,\/]+\s*(?:g|kg|ml|l|mg|cda|cdta|taza|unidades?|uds?|piezas?|rebanadas?|lonchas?)?\s*[-–]?\s*/i, '');
+      // Quantities at end
+      s = s.replace(/\s*\(?[\d.,]+\s*(?:g|kg|ml|l|mg)\)?\s*$/, '');
+      // Parenthetical descriptors: (crudo), (fresco), (sin piel), etc.
+      s = s.replace(/\s*\([^)]*\)\s*/g, ' ');
+      // Cooking/prep methods at end
+      s = s.replace(/\s+(a la plancha|al vapor|al horno|cocido[as]?|crudo[as]?|asado[as]?|hervido[as]?|frito[as]?|troceado[as]?|cortado[as]?|en rodajas|picado[as]?|a la brasa|salteado[as]?|fresco[as]?|congelado[as]?|descongelado[as]?)\s*$/i, '');
+      // "al gusto" / "a gusto" / "al natural"
+      s = s.replace(/\s+a[l]?\s+(gusto|natural)\s*$/i, '');
+      s = s.replace(/\s+/g, ' ').trim();
+      // Accent-strip for collapse rules only
+      const sn = s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+      // Collapse condiment/seasoning variants → base name
+      if (/^sal(\s|$)/.test(sn))                    return 'sal';
+      if (/^aceite\s+de\s+oliva/.test(sn))           return 'aceite de oliva';
+      if (/^especias?(\s|$)/.test(sn))               return 'especias';
+      if (/^vinagre(\s|$)/.test(sn))                 return 'vinagre';
+      if (/^canela(\s|$)/.test(sn))                  return 'canela';
+      if (/^pimienta(\s|$)/.test(sn))                return 'pimienta';
+      if (/^oregano(\s|$)/.test(sn))                 return 'oregano';
+      if (/^comino(\s|$)/.test(sn))                  return 'comino';
+      if (/^curcuma(\s|$)/.test(sn))                 return 'curcuma';
+      if (/^paprika(\s|$)/.test(sn))                 return 'paprika';
+      if (/^jengibre(\s|$)/.test(sn))                return 'jengibre';
+      if (/^perejil(\s|$)/.test(sn))                 return 'perejil';
+      if (/^albahaca(\s|$)/.test(sn))                return 'albahaca';
+      if (/^romero(\s|$)/.test(sn))                  return 'romero';
+      if (/^tomillo(\s|$)/.test(sn))                 return 'tomillo';
+      if (/^limon(\s|$)/.test(sn))                   return 'limon';
+      return s;
+    }
+    function _extractCant(raw) {
+      const s = (typeof raw === 'string' ? raw : (raw.nombre || '')).trim();
+      const m1 = s.match(/^([\d.,]+\s*(?:g|kg|ml|l|mg|cda|cdta|taza|unidades?|uds?|piezas?|rebanadas?|lonchas?)?)\s*[-–\s]/i);
+      if (m1 && m1[1].trim()) return m1[1].trim();
+      const m2 = s.match(/\s+([\d.,]+\s*(?:g|kg|ml|l|mg))\s*$/i);
+      if (m2) return m2[1].trim();
+      return '';
+    }
+    function _sumCants(cants) {
+      if (!cants.length) return '';
+      const byUnit = {};
+      const other = [];
+      for (const c of cants) {
+        const m = c.match(/^([\d.,]+)\s*(g|kg|ml|l|mg)?$/i);
+        if (m) {
+          const v = parseFloat(m[1].replace(',', '.'));
+          const u = (m[2] || 'u').toLowerCase();
+          byUnit[u] = (byUnit[u] || 0) + v;
+        } else { other.push(c); }
+      }
+      const parts = Object.entries(byUnit).map(([u, v]) => {
+        const r = Math.round(v * 10) / 10;
+        return u === 'u' ? String(r) : r + u;
+      });
+      return [...parts, ...other].join(' + ');
+    }
+
+    const LISTA_CATMAP = {
+      'Proteinas': ['pollo','pechuga','ternera','cerdo','salmon','atun','sardina','dorada','merluza','bacalao','gambas','langostino','mejillon','huevo','tofu','tempeh','pavo','caballa','lubina','bonito'],
+      'Lacteos': ['leche','yogur','queso','requeson','kefir','mantequilla','nata','feta','mozzarella','batido','proteina','skyr'],
+      'Verduras': ['tomate','lechuga','espinaca','zanahoria','pepino','pimiento','cebolla','ajo','calabacin','berenjena','brocoli','coliflor','apio','puerro','esparragos','champiñon','remolacha','acelga','col','hinojo','alcachofa','pepinillo'],
+      'Frutas': ['manzana','naranja','platano','pera','fresa','kiwi','melocoton','sandia','melon','mango','arandano','frambuesa','uva','cereza','ciruela','piña','granada','higo','albaricoque','nectarina'],
+      'Cereales y Pan': ['arroz','quinoa','avena','pan','pasta','macarron','espagueti','fideo','cuscus','biscote','tortita','wrap','tostada','centeno'],
+      'Legumbres': ['lenteja','garbanzo','alubia','judias','guisante','soja','edamame','frijol'],
+      'Aceites y Condimentos': ['aceite','oliva','vinagre','sal','pimienta','especias','hierba','oregano','comino','curry','paprika','canela','curcuma'],
+      'Frutos Secos': ['almendra','nuez','anacardo','pistach','avellana','cacahuete','semilla','chia','lino','sesamo','girasol'],
+      'Otros': []
+    };
+
+    function generarListaCompraTexto(planRaw) {
+      let plan = planRaw;
+      if (typeof plan === 'string') { try { plan = JSON.parse(plan); } catch(_) {} }
+      if (typeof plan === 'string') { try { plan = JSON.parse(plan); } catch(_) {} }
+      if (!plan || typeof plan !== 'object') return '';
+
+      let dias = [];
+      if (plan.semanas && Array.isArray(plan.semanas)) {
+        plan.semanas.forEach(s => (s.dias || []).forEach(d => dias.push(d)));
+      } else if (plan.plan_semanal) { dias = plan.plan_semanal; }
+      else if (plan.dias) { dias = plan.dias; }
+
+      // Items que no son ingredientes de compra reales
+      const SKIP_ITEMS = new Set(['agua', 'sal y pimienta', 'sal pimienta', 'mini ensalada', 'hielo', 'agua mineral']);
+      const listaIng = {};
+      for (const dia of dias) {
+        for (const comida of (dia.comidas || [])) {
+          for (const ing of (comida.ingredientes || [])) {
+            if (!ing) continue;
+            const nombre = _normIng(ing);
+            if (!nombre || nombre.length < 3) continue;
+            if (SKIP_ITEMS.has(nombre)) continue;
+            const cantidad = _extractCant(ing);
+            if (!listaIng[nombre]) listaIng[nombre] = [];
+            if (cantidad) listaIng[nombre].push(cantidad);
+          }
+        }
+      }
+      for (const ing of Object.keys(listaIng)) {
+        const s = _sumCants(listaIng[ing]);
+        listaIng[ing] = s ? [s] : [];
+      }
+
+      const cats = {};
+      for (const [nombre, cants] of Object.entries(listaIng)) {
+        let cat = 'Otros';
+        for (const [c, keywords] of Object.entries(LISTA_CATMAP)) {
+          if (c === 'Otros') continue;
+          if (keywords.some(k => nombre.includes(k))) { cat = c; break; }
+        }
+        if (!cats[cat]) cats[cat] = [];
+        cats[cat].push(nombre + (cants[0] ? ' (' + cants[0] + ')' : ''));
+      }
+
+      let texto = '';
+      for (const [cat, items] of Object.entries(cats)) {
+        if (!items.length) continue;
+        texto += cat.toUpperCase() + '\n';
+        for (const item of items) texto += '- ' + item + '\n';
+        texto += '\n';
+      }
+      return texto.trim();
+    }
+
+    function renderListaCompra(dieta) {
+      const container = document.getElementById('dm-lista-content');
+      listaEditMode = false;
+      const btn = document.getElementById('dm-btn-lista-editar');
+      if (btn) btn.textContent = '✏️ Editar';
+
+      const esGuardada = !!dieta.lista_compra_texto;
+      const texto = esGuardada ? dieta.lista_compra_texto : generarListaCompraTexto(dieta.plan_completo);
+
+      const badge = esGuardada
+        ? '<div style="font-size:11px;color:var(--pink);margin-bottom:8px">✅ Lista revisada por nutricionista</div>'
+        : '<div style="font-size:11px;color:var(--muted);margin-bottom:8px">Auto-generada del plan · puedes editarla antes de enviar</div>';
+
+      container.innerHTML = `<div style="background:var(--surface2);border-radius:10px;padding:14px">
+        ${badge}
+        <pre id="dm-lista-pre" style="font-size:13px;white-space:pre-wrap;margin:0;font-family:inherit;color:var(--text);line-height:1.6">${texto || '(sin ingredientes detectados)'}</pre>
+      </div>`;
+    }
+
+    function toggleListaMode() {
+      if (!currentDieta) return;
+      listaEditMode = !listaEditMode;
+      const btn = document.getElementById('dm-btn-lista-editar');
+      const container = document.getElementById('dm-lista-content');
+      if (listaEditMode) {
+        btn.textContent = '👁 Ver';
+        const pre = document.getElementById('dm-lista-pre');
+        const texto = pre ? pre.textContent : (currentDieta.lista_compra_texto || generarListaCompraTexto(currentDieta.plan_completo));
+        container.innerHTML = `<textarea id="dm-lista-textarea" style="width:100%;min-height:220px;background:var(--surface2);border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:14px;font-size:13px;color:var(--text);resize:vertical;line-height:1.6">${texto}</textarea>
+          <div style="text-align:right;margin-top:8px">
+            <button class="btn" onclick="guardarListaCompra()" style="background:#FB5FAB;color:#000;padding:6px 20px;font-size:13px">💾 Guardar lista</button>
+          </div>`;
+      } else {
+        renderListaCompra(currentDieta);
+      }
+    }
+
+    async function guardarListaCompra() {
+      if (!currentDieta) return;
+      const textarea = document.getElementById('dm-lista-textarea');
+      if (!textarea) return;
+      const texto = textarea.value.trim();
+      const fb = document.getElementById('dm-lista-feedback');
+      fb.textContent = 'Guardando...';
+      fb.style.color = 'var(--muted)';
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/dietas_generadas?id=eq.${currentDieta.id}`, {
+          method: 'PATCH',
+          headers: { ...getHeaders(), 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ lista_compra_texto: texto, updated_at: new Date().toISOString() })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        currentDieta.lista_compra_texto = texto;
+        const idx = allDietas.findIndex(d => d.id === currentDieta.id);
+        if (idx !== -1) allDietas[idx].lista_compra_texto = texto;
+        listaEditMode = false;
+        document.getElementById('dm-btn-lista-editar').textContent = '✏️ Editar';
+        renderListaCompra(currentDieta);
+        fb.textContent = '✅ Lista guardada';
+        fb.style.color = 'var(--pink)';
+        document.getElementById('dm-lista-feedback').textContent = '✅ Lista guardada';
+      } catch (e) {
+        fb.textContent = '❌ Error: ' + e.message;
+        fb.style.color = 'var(--red)';
+      }
+    }
+
+    function regenerarListaCompra() {
+      if (!currentDieta || !currentDieta.plan_completo) return;
+      const texto = generarListaCompraTexto(currentDieta.plan_completo);
+      listaEditMode = true;
+      const btn = document.getElementById('dm-btn-lista-editar');
+      if (btn) btn.textContent = '👁 Ver';
+      document.getElementById('dm-lista-content').innerHTML = `<textarea id="dm-lista-textarea" style="width:100%;min-height:220px;background:var(--surface2);border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:14px;font-size:13px;color:var(--text);resize:vertical;line-height:1.6">${texto}</textarea>
+        <div style="text-align:right;margin-top:8px">
+          <button class="btn" onclick="guardarListaCompra()" style="background:#FB5FAB;color:#000;padding:6px 20px;font-size:13px">💾 Guardar lista</button>
+        </div>`;
+      document.getElementById('dm-lista-feedback').textContent = 'Lista regenerada — revísala y guarda si está correcta.';
+      document.getElementById('dm-lista-feedback').style.color = 'var(--muted)';
     }
 
     // ═══ ENVIAR AL CLIENTE VÍA WEBHOOK N8N ═══
@@ -3516,29 +3741,6 @@ ${trimmed}`;
       return res;
     }
 
-    async function previsualizarEmail() {
-      if (!currentDieta) return;
-      const fb = document.getElementById('dm-feedback');
-      const btnPreview = document.getElementById('dm-btn-preview');
-      const btnEnviar = document.getElementById('dm-btn-enviar');
-      fb.textContent = 'Generando preview...';
-      fb.style.color = 'var(--muted)';
-      btnPreview.disabled = true;
-      try {
-        await guardarPlanEditado();
-        await dispararWebhook(`${N8N_URL}/webhook/g2fit-send?dieta_id=${currentDieta.id}&preview=true`);
-        fb.textContent = 'Preview enviado a tu email. Revisalo y si esta bien pulsa Enviar al cliente.';
-        fb.style.color = '#f59e0b';
-        btnEnviar.disabled = false;
-        btnEnviar.style.opacity = '1';
-        btnEnviar.style.cursor = 'pointer';
-      } catch(e) {
-        fb.textContent = 'Error enviando preview: ' + e.message;
-        fb.style.color = 'var(--red)';
-        btnPreview.disabled = false;
-      }
-    }
-
     async function enviarDietaWebhook() {
       if (!currentDieta) return;
       if (!confirm(`¿Enviar el plan nutricional a ${currentDieta.clientes?.email || 'el cliente'}?`)) return;
@@ -3550,8 +3752,10 @@ ${trimmed}`;
       const notas = document.getElementById('dm-notas').value;
 
       try {
-        // Guardar siempre antes de enviar (por si hay ediciones pendientes o editMode ya cerrado)
-      await guardarPlanEditado();
+        // Si hay edición activa sin guardar, guardar primero para que WF3 reciba la versión editada
+      if (editMode) {
+        await guardarPlanEditado();
+      }
 
       // 1. Disparar webhook n8n con autenticación por cabecera
       await dispararWebhook(`${N8N_URL}/webhook/g2fit-send?dieta_id=${currentDieta.id}`);
