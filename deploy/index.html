@@ -816,6 +816,13 @@
         width: calc(100vw - 32px) !important;
         max-width: calc(100vw - 32px) !important;
       }
+
+      /* Elaboracion: colapsar a 1 col cuando el modal se estrecha */
+      #dm-plan-content [style*="grid-template-columns:1fr 1fr"],
+      #dm-plan-content [style*="grid-template-columns: 1fr 1fr"],
+      #dm-plan-content [style*="grid-template-columns:repeat(2"] {
+        grid-template-columns: 1fr !important;
+      }
     }
 
     /* Mobile (≤768px) */
@@ -1010,6 +1017,13 @@
 
       /* Charts: 2-col → 1 col */
       #cm-panel-seguimiento [style*="grid-template-columns:1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* Plan completo: grids de elaboracion e ingredientes → 1 columna en movil */
+      #dm-plan-content [style*="grid-template-columns:1fr 1fr"],
+      #dm-plan-content [style*="grid-template-columns: 1fr 1fr"],
+      #dm-plan-content [style*="grid-template-columns:repeat(2"] {
         grid-template-columns: 1fr !important;
       }
 
@@ -1791,6 +1805,20 @@
               </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Confirmar cierre sin guardar -->
+    <div class="modal-overlay" id="confirm-close-modal" style="z-index:1100">
+      <div class="modal" style="width:420px;max-width:92vw;text-align:center">
+        <div style="font-size:32px;margin-bottom:12px">⚠️</div>
+        <h3 style="margin-bottom:8px">¿Cerrar sin guardar?</h3>
+        <p style="color:var(--muted);font-size:14px;margin-bottom:24px">Tienes cambios en el plan sin guardar. Si cierras ahora se perderán.</p>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button class="btn" onclick="confirmSaveAndClose()" style="background:#FB5FAB;color:#000;padding:10px">💾 Guardar cambios y cerrar</button>
+          <button class="btn btn-secondary" onclick="confirmKeepEditing()" style="padding:10px">✏️ Seguir editando</button>
+          <button class="btn" onclick="confirmDiscardAndClose()" style="background:rgba(239,68,68,0.15);color:var(--red);border:1px solid rgba(239,68,68,0.3);padding:10px">🗑️ Salir sin guardar</button>
         </div>
       </div>
     </div>
@@ -3321,9 +3349,32 @@ ${trimmed}`;
     }
 
     function closeDietaModal() {
+      if (editMode) {
+        document.getElementById('confirm-close-modal').classList.add('open');
+        return;
+      }
+      _forceCloseDietaModal();
+    }
+
+    function _forceCloseDietaModal() {
       document.getElementById('dieta-modal').classList.remove('open');
+      document.getElementById('confirm-close-modal').classList.remove('open');
       currentDieta = null;
       editMode = false;
+    }
+
+    function confirmKeepEditing() {
+      document.getElementById('confirm-close-modal').classList.remove('open');
+    }
+
+    async function confirmSaveAndClose() {
+      await guardarPlanEditado();
+      _forceCloseDietaModal();
+    }
+
+    function confirmDiscardAndClose() {
+      editMode = false;
+      _forceCloseDietaModal();
     }
 
     async function guardarNotasDieta() {
@@ -3875,9 +3926,13 @@ ${trimmed}`;
       if (allDietas.length === 0) loadDietas();
     });
 
-    // Cerrar modal al hacer click fuera
+    // Cerrar modal al hacer click fuera — con guarda si hay edicion activa
     document.getElementById('dieta-modal').addEventListener('click', function (e) {
       if (e.target === this) closeDietaModal();
+    });
+    // Click fuera del modal de confirmacion → volver a editar
+    document.getElementById('confirm-close-modal').addEventListener('click', function (e) {
+      if (e.target === this) confirmKeepEditing();
     });
     // ── DEEP-LINK: soporta ?tab=dietas&dieta_id=XXX desde email de n8n ──────────
     (function handleUrlParams() {
