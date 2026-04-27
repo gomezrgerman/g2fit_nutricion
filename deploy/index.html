@@ -1869,6 +1869,9 @@
         </div>
         <!-- Botones de accion -->
         <div style="display:flex;gap:10px;flex-wrap:wrap" id="dm-actions">
+          <button class="btn" id="dm-btn-preview"
+            style="background:rgba(251,191,36,0.15);color:#f59e0b;border:1px solid rgba(251,191,36,0.3);flex:1"
+            onclick="previewDietaWebhook()">👁 Previsualizar (enviar a Lydia)</button>
           <button class="btn" id="dm-btn-enviar" style="background:#FB5FAB;color:#000;flex:1"
             onclick="enviarDietaWebhook()">✅ Enviar al cliente</button>
           <button class="btn" id="dm-btn-regenerar"
@@ -3340,6 +3343,7 @@ ${trimmed}`;
 
       // Ocultar botones si ya está enviada/cancelada/completada
       const terminada = ['enviada', 'cancelada', 'completada'].includes(dieta.estado);
+      document.getElementById('dm-btn-preview').style.display = terminada ? 'none' : 'flex';
       document.getElementById('dm-btn-enviar').style.display = terminada ? 'none' : 'flex';
       document.getElementById('dm-btn-regenerar').style.display = terminada ? 'none' : 'flex';
       document.getElementById('dm-btn-rechazar').style.display = terminada ? 'none' : 'flex';
@@ -3792,6 +3796,27 @@ ${trimmed}`;
       return res;
     }
 
+    async function previewDietaWebhook() {
+      if (!currentDieta) return;
+      const fb = document.getElementById('dm-feedback');
+      fb.textContent = 'Enviando preview a Lydia...';
+      fb.style.color = 'var(--muted)';
+      const btn = document.getElementById('dm-btn-preview');
+      btn.disabled = true;
+      try {
+        if (editMode) await guardarPlanEditado();
+        await dispararWebhook(`${N8N_URL}/webhook/g2fit-send?dieta_id=${currentDieta.id}&preview=true`);
+        fb.textContent = '✅ Preview enviado a lydia.dietista.denia@gmail.com — revisa el email antes de enviar al cliente.';
+        fb.style.color = 'var(--pink)';
+        showToast('Preview enviado a Lydia', 'success');
+      } catch (e) {
+        fb.textContent = '❌ Error al enviar preview: ' + e.message;
+        fb.style.color = 'var(--red)';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
     async function enviarDietaWebhook() {
       if (!currentDieta) return;
       if (!confirm(`¿Enviar el plan nutricional a ${currentDieta.clientes?.email || 'el cliente'}?`)) return;
@@ -3832,6 +3857,7 @@ ${trimmed}`;
 
         fb.textContent = '✅ ¡Dieta enviada! Se ha disparado el email al cliente via n8n.';
         fb.style.color = 'var(--pink)';
+        document.getElementById('dm-btn-preview').style.display = 'none';
         document.getElementById('dm-btn-enviar').style.display = 'none';
         document.getElementById('dm-btn-regenerar').style.display = 'none';
         document.getElementById('dm-btn-rechazar').style.display = 'none';
@@ -3874,6 +3900,7 @@ ${trimmed}`;
         if (idx !== -1) allDietas[idx].estado = 'cancelada';
         fb.textContent = '🔄 Regeneración solicitada. Recibirás un aviso cuando la nueva dieta esté lista.';
         fb.style.color = '#818cf8';
+        document.getElementById('dm-btn-preview').style.display = 'none';
         document.getElementById('dm-btn-enviar').style.display = 'none';
         document.getElementById('dm-btn-regenerar').style.display = 'none';
         document.getElementById('dm-btn-rechazar').style.display = 'none';
@@ -3909,6 +3936,7 @@ ${trimmed}`;
         currentDieta.estado = 'cancelada';
         fb.textContent = '❌ Dieta rechazada y marcada como cancelada.';
         fb.style.color = 'var(--red)';
+        document.getElementById('dm-btn-preview').style.display = 'none';
         document.getElementById('dm-btn-enviar').style.display = 'none';
         document.getElementById('dm-btn-regenerar').style.display = 'none';
         document.getElementById('dm-btn-rechazar').style.display = 'none';
