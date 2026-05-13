@@ -1176,6 +1176,186 @@
       font-size: 12px;
       color: var(--muted);
     }
+
+    /* ============================================
+       MOBILE BOTTOM NAV
+       ============================================ */
+    .bottom-nav {
+      display: none;
+    }
+
+    @media (max-width: 768px) {
+
+      /* Ocultar tabs superior en móvil */
+      .tabs {
+        display: none !important;
+      }
+
+      /* Bottom nav fija */
+      .bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(15, 23, 42, 0.97);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-top: 1px solid var(--border);
+        z-index: 200;
+        padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
+      }
+
+      .bnav-item {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        padding: 6px 2px;
+        cursor: pointer;
+        border: none;
+        background: none;
+        color: var(--muted);
+        font-size: 9px;
+        font-family: inherit;
+        font-weight: 500;
+        letter-spacing: 0.3px;
+        transition: color 0.15s;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .bnav-item.active {
+        color: var(--pink);
+      }
+
+      .bnav-item .bnav-icon {
+        font-size: 22px;
+        line-height: 1;
+        transition: transform 0.15s;
+      }
+
+      .bnav-item.active .bnav-icon {
+        transform: scale(1.1);
+      }
+
+      /* Padding inferior para no quedar bajo la bottom nav */
+      .container {
+        padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important;
+      }
+
+      /* Nav: ocultar email, comprimir botones */
+      #user-email-display {
+        display: none !important;
+      }
+
+      #logout-btn {
+        padding: 7px 10px !important;
+        font-size: 12px !important;
+      }
+
+      .config-btn {
+        padding: 7px 10px !important;
+        font-size: 12px !important;
+      }
+
+      /* Ocultar texto "Configuración" en móvil, dejar solo el icono */
+      .config-btn-label {
+        display: none;
+      }
+
+      nav {
+        padding: 10px 14px !important;
+      }
+
+      /* Tabla de clientes → tarjetas en móvil */
+      #clientes-table-head {
+        display: none;
+      }
+
+      #clientes-tbody tr {
+        display: grid !important;
+        grid-template-columns: 1fr auto !important;
+        grid-template-rows: auto auto !important;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        margin-bottom: 10px;
+        padding: 14px 16px;
+        gap: 4px 8px;
+      }
+
+      #clientes-tbody td {
+        display: block !important;
+        padding: 0 !important;
+        border: none !important;
+      }
+
+      /* Col 1 fila 1: nombre */
+      #clientes-tbody td:nth-child(1) {
+        grid-column: 1;
+        grid-row: 1;
+        font-weight: 600;
+        font-size: 15px;
+      }
+
+      /* Col 2 fila 2: email */
+      #clientes-tbody td:nth-child(2) {
+        grid-column: 1;
+        grid-row: 2;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      /* Col 3: objetivo — fila 3 */
+      #clientes-tbody td:nth-child(3) {
+        grid-column: 1;
+        grid-row: 3;
+        font-size: 12px;
+        margin-top: 6px;
+        color: var(--pink);
+        font-weight: 500;
+      }
+
+      /* Col 4: peso — fila 3 inline */
+      #clientes-tbody td:nth-child(4) {
+        grid-column: 1;
+        grid-row: 4;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      /* Col 5: IMC — ocultar en móvil */
+      #clientes-tbody td:nth-child(5) {
+        display: none !important;
+      }
+
+      /* Col 6: fecha alta — ocultar en móvil */
+      #clientes-tbody td:nth-child(6) {
+        display: none !important;
+      }
+
+      /* Col 7: botón — esquina derecha */
+      #clientes-tbody td:nth-child(7) {
+        grid-column: 2;
+        grid-row: 1 / 5;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+      }
+
+      #clientes-tbody td:nth-child(7) .btn {
+        white-space: nowrap;
+        padding: 8px 12px !important;
+        font-size: 12px !important;
+      }
+
+      /* Quitar min-width en tabla de clientes en móvil */
+      #clientes-table {
+        min-width: unset !important;
+      }
+    }
   </style>
 </head>
 
@@ -1221,7 +1401,7 @@
       <button id="logout-btn" onclick="logout()" style="display:none;align-items:center;gap:6px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);color:#ef4444;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;font-family:inherit;">
         Cerrar sesión
       </button>
-      <button class="config-btn" onclick="openConfig()">⚙️ Configuración</button>
+      <button class="config-btn" onclick="openConfig()">⚙️ <span class="config-btn-label">Configuración</span></button>
     </div>
   </nav>
 
@@ -1241,6 +1421,34 @@
       </div>
     </div>
   </div>
+
+  <!-- MOBILE BOTTOM NAV -->
+  <nav class="bottom-nav" id="bottom-nav">
+    <button class="bnav-item active" id="bnav-manual" onclick="switchTab('manual', document.querySelector('.tab.active') || document.querySelector('.tab'), 'bnav-manual')">
+      <span class="bnav-icon">✍️</span>
+      <span>Receta</span>
+    </button>
+    <button class="bnav-item" id="bnav-csv" onclick="switchTab('csv', document.querySelector('.tab:nth-child(2)'), 'bnav-csv')">
+      <span class="bnav-icon">📥</span>
+      <span>CSV</span>
+    </button>
+    <button class="bnav-item" id="bnav-docs" onclick="switchTab('docs', document.querySelector('.tab:nth-child(3)'), 'bnav-docs')">
+      <span class="bnav-icon">🤖</span>
+      <span>PDF</span>
+    </button>
+    <button class="bnav-item" id="bnav-lista" onclick="switchTab('lista', document.querySelector('.tab:nth-child(4)'), 'bnav-lista')">
+      <span class="bnav-icon">📋</span>
+      <span>Recetas</span>
+    </button>
+    <button class="bnav-item" id="bnav-clientes" onclick="switchTab('clientes', document.querySelector('#tab-clientes'), 'bnav-clientes')">
+      <span class="bnav-icon">👥</span>
+      <span>Clientes</span>
+    </button>
+    <button class="bnav-item" id="bnav-dietas" onclick="switchTab('dietas', document.querySelector('#tab-dietas'), 'bnav-dietas')">
+      <span class="bnav-icon">🍽️</span>
+      <span>Dietas</span>
+    </button>
+  </nav>
 
   <!-- MAIN -->
   <div class="container">
@@ -1720,8 +1928,8 @@
           <span class="badge" id="c-badge">0</span>
         </div>
         <div style="overflow-x:auto">
-          <table>
-            <thead><tr>
+          <table id="clientes-table">
+            <thead id="clientes-table-head"><tr>
               <th>Cliente</th><th>Email</th><th>Objetivo</th>
               <th>Peso inicial</th><th>IMC</th><th>Alta</th>
               <th style="text-align:center">Acciones</th>
@@ -2106,12 +2314,16 @@
     // ==========================================
     // TABS
     // ==========================================
-    function switchTab(tab, el) {
+    function switchTab(tab, el, bnavId) {
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.bnav-item').forEach(t => t.classList.remove('active'));
       document.getElementById('panel-' + tab).classList.add('active');
-      el.classList.add('active');
+      if (el) el.classList.add('active');
+      const bnavEl = bnavId ? document.getElementById(bnavId) : document.getElementById('bnav-' + tab);
+      if (bnavEl) bnavEl.classList.add('active');
       if (tab === 'lista') loadRecipes();
+      if (tab === 'clientes') loadClientes();
     }
 
     // ==========================================
