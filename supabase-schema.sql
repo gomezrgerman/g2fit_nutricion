@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS public.clientes (
   cocina_habitualmente BOOLEAN DEFAULT true,
   imc                 DECIMAL(4,2),
   id_solicitud        TEXT UNIQUE,
+  link_token          TEXT UNIQUE,
   created_at          TIMESTAMPTZ DEFAULT NOW(),
   updated_at          TIMESTAMPTZ DEFAULT NOW()
 );

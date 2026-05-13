@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/progreso", "destination": "/deploy/progreso.html" },
     { "source": "/", "destination": "/gestor_recetas.html" }
   ]
 }

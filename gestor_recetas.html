@@ -3002,8 +3002,7 @@
         } catch(e) { showToast('Error generando enlace: '+e.message,'error'); return; }
       }
       const origin = window.location.origin || 'https://tu-dominio.com';
-      const path = window.location.pathname.replace(/\/[^/]+$/, '');
-      const url = `${origin}${path}/progreso.html?c=${token}`;
+      const url = `${origin}/progreso?c=${token}`;
       try {
         await navigator.clipboard.writeText(url);
         showToast('✅ Enlace copiado al portapapeles','success');
