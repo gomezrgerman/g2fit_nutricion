@@ -95,7 +95,9 @@ CREATE TABLE IF NOT EXISTS public.dietas_generadas (
   fecha_envio            TIMESTAMPTZ,
   email_dia3_enviado     BOOLEAN DEFAULT false,
   email_dia14_enviado    BOOLEAN DEFAULT false,
+  email_dia14_fecha      TIMESTAMPTZ,
   email_dia28_enviado    BOOLEAN DEFAULT false,
+  email_dia28_fecha      TIMESTAMPTZ,
   feedback_dia_28        TEXT,
   renovacion_solicitada  BOOLEAN DEFAULT false,
   -- Metadatos
