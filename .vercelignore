@@ -1,0 +1,20 @@
+# Workflows n8n — no deben ser públicos
+G2Fit - 0. Error Handler.json
+G2Fit - 1. Captura y Pago.json
+G2Fit - 2. Generador de Dietas.json
+G2Fit - 3. Enviar Email Dieta.json
+G2Fit - 4. Recordatorio Seguimiento.json
+
+# Base de datos y esquemas
+*.sql
+
+# Scripts Python
+*.py
+__pycache__/
+
+# Archivos de desarrollo
+*.csv
+*.md
+REGISTRO_ACTIVIDADES_TRATAMIENTO.md
+TESTING.md
+README.md
