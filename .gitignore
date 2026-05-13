@@ -9,3 +9,11 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
+
+# Workflows n8n — contienen webhooks y arquitectura del sistema
+G2Fit - 0. Error Handler.json
+G2Fit - 1. Captura y Pago.json
+G2Fit - 2. Generador de Dietas.json
+G2Fit - 3. Enviar Email Dieta.json
+G2Fit - 4. Recordatorio Seguimiento.json
+.vercel
