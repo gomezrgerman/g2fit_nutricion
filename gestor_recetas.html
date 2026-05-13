@@ -827,7 +827,7 @@
 
     /* Mobile (≤768px) */
     @media (max-width: 768px) {
-      nav {
+      nav:not(.bottom-nav) {
         padding: 10px 16px;
         gap: 8px;
       }
@@ -956,6 +956,7 @@
 
       /* Config banner */
       #config-banner {
+        display: none !important;
         flex-wrap: wrap;
         font-size: 13px;
       }
@@ -1196,14 +1197,17 @@
         display: flex;
         position: fixed;
         bottom: 0;
+        top: auto;
         left: 0;
         right: 0;
         background: rgba(15, 23, 42, 0.97);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
         border-top: 1px solid var(--border);
+        border-bottom: none;
         z-index: 200;
         padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
+        justify-content: space-around;
       }
 
       .bnav-item {
@@ -1265,7 +1269,7 @@
         display: none;
       }
 
-      nav {
+      nav:not(.bottom-nav) {
         padding: 10px 14px !important;
       }
 
