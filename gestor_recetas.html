@@ -961,6 +961,11 @@
         font-size: 13px;
       }
 
+      /* CSV y PDF no disponibles en móvil */
+      #bnav-csv, #bnav-docs {
+        display: none !important;
+      }
+
       /* MODALS: full-width, scrollable */
       .modal-overlay {
         align-items: flex-end;
@@ -2127,6 +2132,21 @@
           <div style="font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Preferencias &amp; Estilo de vida</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px" id="cm-preferencias"></div>
         </div>
+        <div style="background:rgba(251,95,171,0.06);border:1px solid rgba(251,95,171,0.2);border-radius:10px;padding:16px;margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div style="font-size:12px;color:var(--pink);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Ajustes post-dieta</div>
+            <button class="btn btn-secondary" onclick="guardarAjustesCliente()" style="padding:5px 14px;font-size:12px">💾 Guardar cambios</button>
+          </div>
+          <div class="field" style="margin-bottom:10px">
+            <label style="font-size:12px">Alimentos a evitar — añade aquí lo que el cliente haya dicho después del formulario</label>
+            <textarea id="cm-alimentos-evitar" style="min-height:64px" placeholder="Ej: no le gusta el salmón, prefiere evitar la avena..."></textarea>
+          </div>
+          <div class="field">
+            <label style="font-size:12px">Información adicional de interés</label>
+            <textarea id="cm-datos-interes" style="min-height:64px" placeholder="Cualquier dato que el cliente haya mencionado y que deba tenerse en cuenta..."></textarea>
+          </div>
+          <div id="cm-ajustes-feedback" style="font-size:12px;margin-top:8px;min-height:14px;color:var(--muted)"></div>
+        </div>
       </div>
 
       <!-- SEGUIMIENTO -->
@@ -2841,6 +2861,9 @@
 
       document.getElementById('med-fecha').value = new Date().toISOString().split('T')[0];
       ['med-peso','med-c1','med-c2','med-c3','med-notas'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('cm-alimentos-evitar').value = c.alimentos_a_evitar || '';
+      document.getElementById('cm-datos-interes').value = c.datos_interes || '';
+      document.getElementById('cm-ajustes-feedback').textContent = '';
 
       switchCMTab('perfil');
       document.getElementById('cliente-modal').classList.add('open');
@@ -2851,6 +2874,40 @@
       currentCliente = null;
       if (pesoChart) { pesoChart.destroy(); pesoChart = null; }
       if (medidasChart) { medidasChart.destroy(); medidasChart = null; }
+    }
+
+    async function guardarAjustesCliente() {
+      if (!currentCliente) return;
+      const alimentosEvitar = document.getElementById('cm-alimentos-evitar').value.trim();
+      const datosInteres = document.getElementById('cm-datos-interes').value.trim();
+      const fb = document.getElementById('cm-ajustes-feedback');
+      fb.textContent = 'Guardando...';
+      fb.style.color = 'var(--muted)';
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${currentCliente.id}`, {
+          method: 'PATCH',
+          headers: { ...getHeaders(), 'Prefer': 'return=minimal' },
+          body: JSON.stringify({
+            alimentos_a_evitar: alimentosEvitar || null,
+            datos_interes: datosInteres || null,
+            updated_at: new Date().toISOString()
+          })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        currentCliente.alimentos_a_evitar = alimentosEvitar;
+        currentCliente.datos_interes = datosInteres;
+        const idx = allClientes.findIndex(c => c.id === currentCliente.id);
+        if (idx !== -1) {
+          allClientes[idx].alimentos_a_evitar = alimentosEvitar;
+          allClientes[idx].datos_interes = datosInteres;
+        }
+        fb.textContent = '✅ Guardado — se aplicará en la próxima generación de dieta';
+        fb.style.color = 'var(--pink)';
+        showToast('Perfil del cliente actualizado', 'success');
+      } catch (e) {
+        fb.textContent = '❌ Error: ' + e.message;
+        fb.style.color = 'var(--red)';
+      }
     }
 
     function switchCMTab(tab) {
@@ -3556,13 +3613,15 @@ ${trimmed}`;
       document.getElementById('dm-notas').value = dieta.notas_nutricionista || '';
       document.getElementById('dm-feedback').textContent = '';
 
-      // Ocultar botones si ya está enviada/cancelada/completada
-      const terminada = ['enviada', 'cancelada', 'completada'].includes(dieta.estado);
-      document.getElementById('dm-btn-preview').style.display = terminada ? 'none' : 'flex';
-      document.getElementById('dm-btn-enviar').style.display = terminada ? 'none' : 'flex';
-      document.getElementById('dm-btn-regenerar').style.display = terminada ? 'none' : 'flex';
-      document.getElementById('dm-btn-rechazar').style.display = terminada ? 'none' : 'flex';
-      document.getElementById('dm-btn-editar').style.display = terminada ? 'none' : 'inline-flex';
+      // Ocultar botones según estado
+      const bloqueada = ['cancelada', 'completada'].includes(dieta.estado);
+      const yaEnviada = dieta.estado === 'enviada';
+      document.getElementById('dm-btn-preview').style.display = (bloqueada || yaEnviada) ? 'none' : 'flex';
+      document.getElementById('dm-btn-enviar').style.display = bloqueada ? 'none' : 'flex';
+      document.getElementById('dm-btn-regenerar').style.display = (bloqueada || yaEnviada) ? 'none' : 'flex';
+      document.getElementById('dm-btn-rechazar').style.display = (bloqueada || yaEnviada) ? 'none' : 'flex';
+      document.getElementById('dm-btn-editar').style.display = bloqueada ? 'none' : 'inline-flex';
+      document.getElementById('dm-btn-enviar').textContent = yaEnviada ? '🔄 Reenviar al cliente' : '✅ Enviar al cliente';
 
       document.getElementById('dieta-modal').classList.add('open');
     }
