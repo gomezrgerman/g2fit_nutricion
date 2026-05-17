@@ -4103,9 +4103,20 @@ ${trimmed}`;
 
       try {
         // Si hay edición activa sin guardar, guardar primero para que WF3 reciba la versión editada
-      if (editMode) {
-        await guardarPlanEditado();
-      }
+        if (editMode) {
+          await guardarPlanEditado();
+        }
+
+        // Si ya estaba enviada, resetear a 'aprobada' para que WF3 no la bloquee por duplicado
+        const eraEnviada = currentDieta.estado === 'enviada';
+        if (eraEnviada) {
+          const resetRes = await fetch(`${SUPABASE_URL}/rest/v1/dietas_generadas?id=eq.${currentDieta.id}`, {
+            method: 'PATCH',
+            headers: { ...getHeaders(), 'Prefer': 'return=minimal' },
+            body: JSON.stringify({ estado: 'aprobada', updated_at: new Date().toISOString() })
+          });
+          if (!resetRes.ok) throw new Error('No se pudo preparar el reenvío: ' + await resetRes.text());
+        }
 
       // 1. Disparar webhook n8n con autenticación por cabecera
       await dispararWebhook(`${N8N_URL}/webhook/g2fit-send?dieta_id=${currentDieta.id}`);
