@@ -2147,6 +2147,13 @@
           </div>
           <div id="cm-ajustes-feedback" style="font-size:12px;margin-top:8px;min-height:14px;color:var(--muted)"></div>
         </div>
+
+        <div style="margin-top:16px">
+          <button class="btn" onclick="enviarRenovacionCliente()" style="background:rgba(251,95,171,0.15);color:var(--pink);border:1px solid rgba(251,95,171,0.3);width:100%;padding:10px;font-size:13px">
+            🔄 Enviar email de renovación al cliente
+          </button>
+          <div id="cm-renovacion-feedback" style="font-size:12px;margin-top:6px;min-height:14px;color:var(--muted)"></div>
+        </div>
       </div>
 
       <!-- SEGUIMIENTO -->
@@ -2864,6 +2871,7 @@
       document.getElementById('cm-alimentos-evitar').value = c.alimentos_a_evitar || '';
       document.getElementById('cm-datos-interes').value = c.datos_interes || '';
       document.getElementById('cm-ajustes-feedback').textContent = '';
+      document.getElementById('cm-renovacion-feedback').textContent = '';
 
       switchCMTab('perfil');
       document.getElementById('cliente-modal').classList.add('open');
@@ -2904,6 +2912,25 @@
         fb.textContent = '✅ Guardado — se aplicará en la próxima generación de dieta';
         fb.style.color = 'var(--pink)';
         showToast('Perfil del cliente actualizado', 'success');
+      } catch (e) {
+        fb.textContent = '❌ Error: ' + e.message;
+        fb.style.color = 'var(--red)';
+      }
+    }
+
+    async function enviarRenovacionCliente() {
+      if (!currentCliente) return;
+      const nombre = currentCliente.nombre || 'este cliente';
+      const confirmar = confirm(`¿Estás segura de que quieres enviar el email de renovación a ${nombre}?`);
+      if (!confirmar) return;
+      const fb = document.getElementById('cm-renovacion-feedback');
+      fb.textContent = 'Enviando...';
+      fb.style.color = 'var(--muted)';
+      try {
+        await dispararWebhook(`${N8N_URL}/webhook/g2fit-renovacion-manual?cliente_id=${currentCliente.id}`);
+        fb.textContent = '✅ Email de renovación enviado';
+        fb.style.color = 'var(--pink)';
+        showToast('Email de renovación enviado a ' + nombre, 'success');
       } catch (e) {
         fb.textContent = '❌ Error: ' + e.message;
         fb.style.color = 'var(--red)';
