@@ -325,7 +325,13 @@
     },
     "IF - Ya Enviada": {
       "main": [
-        [],
+        [
+          {
+            "node": "Supabase - Leer Cliente1",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "Supabase - Leer Cliente1",

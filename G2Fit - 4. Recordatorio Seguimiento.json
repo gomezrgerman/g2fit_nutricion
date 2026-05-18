@@ -12,13 +12,13 @@
           ]
         }
       },
-      "id": "d82f6342-e52b-41c3-812d-d6184f674801",
+      "id": "f2927d37-da12-474d-9068-a1a87a1aa2dc",
       "name": "Schedule - Diario 9:00",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        -14384,
-        7936
+        -12848,
+        8144
       ]
     },
     {
@@ -29,13 +29,13 @@
         "filterType": "string",
         "filterString": "=estado=eq.enviada&fecha_envio=gte.{{ new Date(Date.now() - 45*24*60*60*1000).toISOString() }}&fecha_envio=lte.{{ new Date(Date.now() - 13*24*60*60*1000).toISOString() }}"
       },
-      "id": "77afec0a-307d-49e3-ba86-8b472454862e",
+      "id": "3d98ae40-fc5e-4fba-b448-7e469aef6133",
       "name": "Supabase - Obtener Dietas Enviadas",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "position": [
-        -14160,
-        7936
+        -12624,
+        8144
       ],
       "credentials": {
         "supabaseApi": {
@@ -48,13 +48,13 @@
       "parameters": {
         "jsCode": "// Filtrar dietas que necesitan recordatorio hoy\nconst items = $input.all();\nconst now = new Date();\nnow.setUTCHours(0, 0, 0, 0); // normalizar a inicio del día UTC\nconst result = [];\n\nfor (const item of items) {\n  const d = item.json;\n  if (!d.fecha_envio) continue;\n  const fe = new Date(d.fecha_envio);\n  fe.setUTCHours(0, 0, 0, 0); // normalizar a inicio del día UTC\n  fe.setUTCDate(fe.getUTCDate() + 3); // fecha efectiva = 3 días de margen para el cliente\n  const days = Math.floor((now - fe) / (1000 * 60 * 60 * 24));\n\n  if (days >= 13 && days <= 18 && !d.email_dia14_enviado) {\n    result.push({ json: { ...d, tipo_recordatorio: '2sem', dias_desde_envio: days } });\n  } else if (days >= 29 && days <= 38 && !d.email_dia28_enviado) {\n    result.push({ json: { ...d, tipo_recordatorio: '1mes', dias_desde_envio: days } });\n  }\n}\n\nreturn result.length > 0 ? result : [{ json: { __empty: true } }];"
       },
-      "id": "286aca68-1305-4664-b125-ce1cc7cb5eba",
+      "id": "2e891985-0d01-483d-8565-6684999622ce",
       "name": "Code - Filtrar y Clasificar",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -13936,
-        7936
+        -12400,
+        8144
       ]
     },
     {
@@ -79,26 +79,26 @@
         },
         "options": {}
       },
-      "id": "93b2f21b-9953-4fe1-ab56-dc360bf722f0",
+      "id": "e44930cb-1ab9-4bfd-9fcf-c7f4abf25e9b",
       "name": "IF - Hay Dietas Pendientes",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -13728,
-        7936
+        -12192,
+        8144
       ]
     },
     {
       "parameters": {
         "options": {}
       },
-      "id": "7bec5abc-41b3-4088-a436-ced727b59779",
+      "id": "7826c292-7628-44ab-9907-2d8628060428",
       "name": "Loop Dietas",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        -13456,
-        7792
+        -11920,
+        8000
       ]
     },
     {
@@ -109,13 +109,13 @@
         "filterType": "string",
         "filterString": "=id=eq.{{ $('Loop Dietas').item.json.cliente_id }}"
       },
-      "id": "09c90348-a84d-47b2-8d78-71dfa00f22ad",
+      "id": "42b1fe8b-bf5e-4163-82be-7f37102b9055",
       "name": "Supabase - Obtener Cliente Cron",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "position": [
-        -13264,
-        7792
+        -11728,
+        8000
       ],
       "credentials": {
         "supabaseApi": {
@@ -128,13 +128,13 @@
       "parameters": {
         "jsCode": "const dieta = $('Loop Dietas').item.json;\nconst cliente = $('Supabase - Obtener Cliente Cron').first().json;\nconst es2sem = dieta.tipo_recordatorio === '2sem';\nconst nombre = cliente.nombre || 'cliente';\nconst email = cliente.email;\nconst diasDesdeEnvio = dieta.dias_desde_envio || (es2sem ? 14 : 30);\n\n// Mapear objetivo a texto legible\nconst OBJETIVOS = {\n  perder_peso: 'perder peso',\n  ganar_masa: 'ganar masa muscular',\n  mantener: 'mantener tu peso',\n  definicion: 'definición muscular'\n};\nconst objetivoTexto = OBJETIVOS[cliente.objetivo_principal] || cliente.objetivo_principal || 'mejorar tu salud';\n\n// Peso actual del cliente\nconst pesoActual = cliente.peso ? `${cliente.peso} kg` : null;\n\nconst TALLY_2SEM    = 'QKr9J8';\nconst TALLY_1MES_SI = 'rjK8NR';\nconst TALLY_1MES_NO = 'REEMPLAZAR_FORM_NO';\n\nconst asunto = es2sem\n  ? `${nombre}, ¿cómo llevas tu plan para ${objetivoTexto}? — G2Fit Nutrición`\n  : `${nombre}, ¡un mes trabajando para ${objetivoTexto}! ¿Continuamos? — G2Fit Nutrición`;\n\nlet html;\nif (es2sem) {\n  const tallyUrl = `https://tally.so/r/${TALLY_2SEM}?cliente_id=${cliente.id}&dieta_id=${dieta.id}&tipo=2sem`;\n  html = `<!DOCTYPE html><html lang=\"es\"><head><meta charset=\"UTF-8\"></head><body style=\"margin:0;padding:0;font-family:Arial,sans-serif;background:#f5f5f5\">\n    <div style=\"background:#0F172A;padding:24px 32px;text-align:center\">\n      <img src=\"https://blardvkldwwbhgdmsxhd.supabase.co/storage/v1/object/public/assets/logo_full.png\" alt=\"G2Fit\" style=\"height:50px;max-width:160px;object-fit:contain;filter:brightness(0) invert(1);\" />\n    </div>\n    <div style=\"background:#FB5FAB;padding:8px 32px;text-align:center\">\n      <p style=\"margin:0;color:#fff;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase\">${es2sem ? 'Seguimiento 2 semanas' : 'Seguimiento 1 mes'}</p>\n    </div>\n    <div style=\"background:white;padding:32px 24px;border-bottom:3px solid #FB5FAB\">\n      <h2 style=\"color:#0F172A;margin-top:0\">¡Hola, ${nombre}!</h2>\n      <p style=\"font-size:15px;line-height:1.6;color:#333\">Han pasado <strong>${diasDesdeEnvio} días</strong> desde que empezaste con tu plan personalizado para <strong>${objetivoTexto}</strong>. ¡Es el momento perfecto para hacer un primer balance!</p>\n      ${pesoActual ? `<p style=\"font-size:14px;color:#666;background:#f8f9fa;padding:12px 16px;border-radius:8px;border-left:3px solid #FB5FAB\">Cuando empezaste tu peso era <strong>${pesoActual}</strong>. Cuéntanos cómo estás ahora.</p>` : ''}\n      <p style=\"font-size:15px;line-height:1.6;color:#333\">Rellena este breve formulario (2 minutos) para que <strong>Lydia Sarrió</strong>, tu nutricionista, pueda hacer seguimiento de tu evolución:</p>\n      <ul style=\"font-size:14px;line-height:2;color:#555\">\n        <li>Tu peso actual</li>\n        <li>Cómo te está yendo con la dieta</li>\n        <li>Qué es lo más difícil</li>\n        <li>Dudas o comentarios para Lydia</li>\n      </ul>\n    </div>\n    <div style=\"background:#fdf2f8;padding:32px 24px;text-align:center\">\n      <a href=\"${tallyUrl}\" style=\"background:#FB5FAB;color:white;padding:16px 32px;border-radius:10px;text-decoration:none;font-size:16px;font-weight:bold;display:inline-block\">Rellenar seguimiento →</a>\n      <p style=\"font-size:12px;color:#888;margin-top:16px\">Solo 3 preguntas rápidas · Lydia revisará tus respuestas personalmente</p>\n    </div>\n    <div style=\"background:white;padding:20px 24px\">\n      <p style=\"font-size:13px;color:#666;line-height:1.6\">¡Ánimo, vas genial en tu camino para ${objetivoTexto}! Ante cualquier duda, responde a este email y Lydia te contestará.</p>\n    </div>\n    <div style=\"background:#0F172A;padding:20px;text-align:center\">\n      <p style=\"margin:0;color:white;font-weight:bold\">G2Fit Nutrición</p>\n      <p style=\"margin:4px 0 0;color:#94a3b8;font-size:12px\">Tu bienestar, nuestra misión</p>\n    </div>\n  </body></html>`;\n} else {\n  const urlSi = `https://tally.so/r/${TALLY_1MES_SI}?cliente_id=${cliente.id}&dieta_id=${dieta.id}&tipo=1mes_si`;\n  const urlNo = `https://tally.so/r/${TALLY_1MES_NO}?cliente_id=${cliente.id}&dieta_id=${dieta.id}&tipo=1mes_no`;\n  html = `<!DOCTYPE html><html lang=\"es\"><head><meta charset=\"UTF-8\"></head><body style=\"margin:0;padding:0;font-family:Arial,sans-serif;background:#f5f5f5\">\n    <div style=\"background:linear-gradient(135deg,#0F172A,#1e293b);padding:30px 24px;text-align:center\">\n      <h1 style=\"color:white;margin:0;font-size:26px\">G2Fit Nutrición</h1>\n      <p style=\"color:#fce4ec;margin:8px 0 0\">Evaluación del primer mes</p>\n    </div>\n    <div style=\"background:white;padding:32px 24px;border-bottom:3px solid #FB5FAB\">\n      <h2 style=\"color:#0F172A;margin-top:0\">¡Hola, ${nombre}!</h2>\n      <p style=\"font-size:15px;line-height:1.6;color:#333\">¡Llevas <strong>un mes completo</strong> trabajando para <strong>${objetivoTexto}</strong>! Ha sido un gran logro y queremos saber cómo te ha ido.</p>\n      ${pesoActual ? `<p style=\"font-size:14px;color:#666;background:#f8f9fa;padding:12px 16px;border-radius:8px;border-left:3px solid #FB5FAB\">Empezaste con <strong>${pesoActual}</strong>. Lydia Sarrió, tu nutricionista, quiere saber cómo evolucionaste.</p>` : ''}\n      <p style=\"font-size:15px;line-height:1.6;color:#333\"><strong>¿Qué quieres hacer ahora?</strong></p>\n    </div>\n    <div style=\"background:#fdf2f8;padding:32px 24px\">\n      <div style=\"text-align:center;margin-bottom:20px\">\n        <p style=\"font-size:15px;font-weight:bold;color:#0F172A;margin-bottom:12px\">Continuar hacia mi objetivo de ${objetivoTexto}</p>\n        <a href=\"${urlSi}\" style=\"background:#FB5FAB;color:white;padding:16px 32px;border-radius:10px;text-decoration:none;font-size:16px;font-weight:bold;display:inline-block\">Sí, quiero el mes 2 →</a>\n        <p style=\"font-size:12px;color:#888;margin-top:8px\">Rellena el feedback (5 min) · Lydia personalizará tu nuevo plan con lo aprendido este mes</p>\n      </div>\n      <hr style=\"border:none;border-top:1px solid #eee;margin:20px 0\">\n      <div style=\"text-align:center\">\n        <p style=\"font-size:14px;color:#666;margin-bottom:12px\">Prefiero pausar por ahora</p>\n        <a href=\"${urlNo}\" style=\"background:#64748b;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:14px;display:inline-block\">No, lo dejo por ahora</a>\n        <p style=\"font-size:11px;color:#999;margin-top:8px\">Tu opinión nos ayuda a mejorar · siempre puedes volver cuando quieras</p>\n      </div>\n    </div>\n    <div style=\"background:white;padding:20px 24px\">\n      <p style=\"font-size:13px;color:#666;line-height:1.6\">Sea cual sea tu decisión, ha sido un placer acompañarte este mes en tu camino para ${objetivoTexto}. Lydia Sarrió está disponible para cualquier duda respondiendo a este email.</p>\n    </div>\n    <div style=\"background:#0F172A;padding:20px;text-align:center\">\n      <p style=\"margin:0;color:white;font-weight:bold\">G2Fit Nutrición</p>\n      <p style=\"margin:4px 0 0;color:#94a3b8;font-size:12px\">Tu bienestar, nuestra misión</p>\n    </div>\n  </body></html>`;\n}\n\nreturn [{ json: { cliente_email: email, cliente_nombre: nombre, asunto, html_email: html, dieta_id: dieta.id, cliente_id: cliente.id, tipo_recordatorio: dieta.tipo_recordatorio } }];"
       },
-      "id": "3b4faae0-6338-459e-ac51-8260f1f1f1f7",
+      "id": "f331f759-bdb2-4471-976f-9779dc5be358",
       "name": "Code - Construir Email Recordatorio",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -13088,
-        7776
+        -11552,
+        7984
       ]
     },
     {
@@ -144,13 +144,13 @@
         "message": "={{ $('Code - Construir Email Recordatorio').first().json.html_email }}",
         "options": {}
       },
-      "id": "6113b05d-494c-43fe-ba54-8a77441db949",
+      "id": "b728ba41-c526-473d-8c82-b5f3ae18bd0b",
       "name": "Gmail - Enviar Recordatorio",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2,
       "position": [
-        -12896,
-        7952
+        -11360,
+        8160
       ],
       "webhookId": "6b130a93-2fe9-4412-8ee3-f67e2562d62e",
       "credentials": {
@@ -182,13 +182,13 @@
         },
         "options": {}
       },
-      "id": "8c042884-490d-430c-92bc-b19976029a91",
+      "id": "9d2d1209-f43a-4c5e-8645-5a290c40d30d",
       "name": "IF - Tipo Recordatorio",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -12864,
-        7776
+        -11328,
+        7984
       ]
     },
     {
@@ -210,13 +210,13 @@
           ]
         }
       },
-      "id": "d54a5e24-81d1-409a-be6f-912f90cfe4d8",
+      "id": "b13ab7df-dc11-450f-b706-fd29f5ac1417",
       "name": "Supabase - Marcar 2sem Enviado",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "position": [
-        -12672,
-        7728
+        -11136,
+        7936
       ],
       "credentials": {
         "supabaseApi": {
@@ -244,13 +244,13 @@
           ]
         }
       },
-      "id": "5dd79d85-cf3f-4d48-b188-e46edbf8dfe0",
+      "id": "d31ce7e6-43c8-4fda-812d-353b7c9bd3b5",
       "name": "Supabase - Marcar 1mes Enviado",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "position": [
-        -12656,
-        7920
+        -11120,
+        8128
       ],
       "credentials": {
         "supabaseApi": {
@@ -268,13 +268,13 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "2e823d63-2d38-494a-a075-380e6f66fc5e",
+      "id": "8ce515c8-77df-43ee-be85-183674189314",
       "name": "Webhook - Seguimiento 2sem",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        -14384,
-        8240
+        -12848,
+        8448
       ],
       "webhookId": "g2fit-seg-2sem"
     },
@@ -284,26 +284,26 @@
         "responseBody": "{\"ok\":true,\"mensaje\":\"Seguimiento registrado\"}",
         "options": {}
       },
-      "id": "dd507e1c-35a6-4613-8bf4-d62e9eea4c2e",
+      "id": "ad58ce8b-cc72-4ca1-a52b-0588a642f59a",
       "name": "Respond - OK 2sem",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        -14160,
-        8144
+        -12624,
+        8352
       ]
     },
     {
       "parameters": {
         "jsCode": "// ===== PARSEAR FORMULARIO SEGUIMIENTO 2 SEMANAS =====\nconst body = $json.body;\nconst fields = (body.data && body.data.fields) || [];\nconst query = $json.query || {};\n\nconst getField = (key) => {\n  const f = fields.find(f => f.key === key);\n  if (!f) return null;\n  if (Array.isArray(f.value) && f.options) return f.options.filter(o => f.value.includes(o.id)).map(o => o.text).join(', ');\n  return f.value;\n};\n\n// Hidden fields — dos estrategias:\n// 1) Campo individual con type HIDDEN_FIELDS y label === nombre\n// 2) Campo único con type HIDDEN_FIELDS cuyo value es un objeto {cliente_id: ..., dieta_id: ...}\nconst getHidden = (label) => {\n  // Estrategia 1: campo separado por label\n  const f1 = fields.find(f => f.type === 'HIDDEN_FIELDS' && f.label && f.label.trim().toLowerCase() === label.toLowerCase());\n  if (f1 && f1.value !== null && f1.value !== undefined) return f1.value;\n  \n  // Estrategia 2: objeto agrupado\n  const f2 = fields.find(f => f.type === 'HIDDEN_FIELDS' && f.value && typeof f.value === 'object' && !Array.isArray(f.value));\n  if (f2 && f2.value[label] !== undefined) return f2.value[label];\n  \n  return null;\n};\n\nconst cliente_id = (String(query.cliente_id || getHidden('cliente_id') || '').trim()) || null;\nconst dieta_id   = (String(query.dieta_id   || getHidden('dieta_id')   || '').trim()) || null;\n\n// === DEBUG: si cliente_id sigue vacío, mostrar estructura completa del payload ===\nif (!cliente_id) {\n  return [{ json: {\n    __debug: true,\n    __error: 'cliente_id no encontrado — revisar estructura de campos ocultos',\n    campos_recibidos: fields.map(f => ({ key: f.key, type: f.type, label: f.label, value: f.value })),\n    query_params: query,\n    body_keys: Object.keys(body || {}),\n    data_keys: Object.keys((body && body.data) || {})\n  } }];\n}\n\n// Campos del formulario (keys reales de Tally)\nconst peso_raw    = getField('question_RzQp1p');\nconst peso        = peso_raw !== null ? parseFloat(String(peso_raw).replace(',', '.')) : null;\nconst sensacion   = getField('question_eBGbPJ') || '';\nconst energia     = getField('question_KM4NlV');\nconst adherencia  = getField('question_WA64dL') || '';\nconst momento_dif = getField('question_aB1WoW') || '';\nconst cambios     = getField('question_LdjqWp') || '';\nconst dificultad  = getField('question_6dYq5o') || '';\nconst hambre      = getField('question_7dYQ56') || '';\nconst motivacion  = getField('question_blMaG0');\n\n// Construir notas detalladas\nconst notasPartes = ['=== SEGUIMIENTO 2 SEMANAS ==='];\nif (sensacion)   notasPartes.push(`Sensación general: ${sensacion}`);\nif (energia !== null) notasPartes.push(`Nivel energía: ${energia}/10`);\nif (adherencia)  notasPartes.push(`Adherencia al plan: ${adherencia}`);\nif (momento_dif) notasPartes.push(`Momento más difícil: ${momento_dif}`);\nif (cambios)     notasPartes.push(`Cambios notados: ${cambios}`);\nif (dificultad)  notasPartes.push(`Qué le cuesta: ${dificultad}`);\nif (hambre)      notasPartes.push(`Hambre/antojos: ${hambre}`);\nif (motivacion !== null) notasPartes.push(`Motivación: ${motivacion}/10`);\n\nreturn [{ json: {\n  cliente_id,\n  dieta_id,\n  peso,\n  sensacion,\n  energia,\n  adherencia,\n  momento_dif,\n  cambios,\n  dificultad,\n  hambre,\n  motivacion,\n  notas_seguimiento: notasPartes.join(' | '),\n  fecha_medicion: new Date().toISOString().split('T')[0]\n} }];"
       },
-      "id": "f2179b1f-32a1-4212-9db2-20d83d69e52a",
+      "id": "6ed16d6c-7964-4f1c-b90b-9e3b8336a558",
       "name": "Code - Parsear Tally 2sem",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -14160,
-        8288
+        -12624,
+        8496
       ]
     },
     {
@@ -330,13 +330,13 @@
           ]
         }
       },
-      "id": "ff857199-8893-4ec6-80b4-0a46c062e2e0",
+      "id": "31f7b66c-cd5c-46f4-8f05-29148c1beefe",
       "name": "Supabase - Guardar Seguimiento 2sem",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "position": [
-        -13936,
-        8288
+        -12400,
+        8496
       ],
       "credentials": {
         "supabaseApi": {
@@ -352,13 +352,13 @@
         "message": "={{ (function() { const d = $('Code - Parsear Tally 2sem').first().json; return '<h2 style=\"margin-top:0;color:#0F172A\">Seguimiento a las 2 semanas</h2><table style=\"border-collapse:collapse;width:100%;font-size:14px\"><tr><td style=\"padding:10px 8px;border-bottom:1px solid #eee;color:#555\"><strong>Peso actual</strong></td><td style=\"padding:10px 8px;border-bottom:1px solid #eee\">' + (d.peso ? d.peso + ' kg' : 'No indicado') + '</td></tr><tr><td style=\"padding:10px 8px;border-bottom:1px solid #eee;color:#555\"><strong>Sensación general</strong></td><td style=\"padding:10px 8px;border-bottom:1px solid #eee\">' + (d.sensacion || '—') + '</td></tr><tr><td style=\"padding:10px 8px;border-bottom:1px solid #eee;color:#555\"><strong>Nivel de energía</strong></td><td style=\"padding:10px 8px;border-bottom:1px solid #eee\">' + (d.energia !== null && d.energia !== undefined ? d.energia + '/10' : '—') + '</td></tr><tr><td style=\"padding:10px 8px;border-bottom:1px solid #eee;color:#555\"><strong>Adherencia al plan</strong></td><td style=\"padding:10px 8px;border-bottom:1px solid #eee\">' + (d.adherencia || '—') + '</td></tr><tr><td style=\"padding:10px 8px;border-bottom:1px solid #eee;color:#555\"><strong>Momento más difícil</strong></td><td style=\"padding:10px 8px;border-bottom:1px solid #eee\">' + (d.momento_dif || '—') + '</td></tr><tr><td style=\"padding:10px 8px;border-bottom:1px solid #eee;color:#555\"><strong>Cambios notados</strong></td><td style=\"padding:10px 8px;border-bottom:1px solid #eee\">' + (d.cambios || '—') + '</td></tr><tr><td style=\"padding:10px 8px;border-bottom:1px solid #eee;color:#555\"><strong>Qué le cuesta</strong></td><td style=\"padding:10px 8px;border-bottom:1px solid #eee\">' + (d.dificultad || '—') + '</td></tr><tr><td style=\"padding:10px 8px;border-bottom:1px solid #eee;color:#555\"><strong>Hambre / antojos</strong></td><td style=\"padding:10px 8px;border-bottom:1px solid #eee\">' + (d.hambre || '—') + '</td></tr><tr><td style=\"padding:10px 8px;color:#555\"><strong>Motivación</strong></td><td style=\"padding:10px 8px\">' + (d.motivacion !== null && d.motivacion !== undefined ? d.motivacion + '/10' : '—') + '</td></tr></table><p style=\"margin-top:16px;color:#888;font-size:12px\">Los datos de seguimiento ya están guardados en Supabase.</p>'; })() }}",
         "options": {}
       },
-      "id": "f8ec5c0f-d213-41db-9046-92270753d727",
+      "id": "843dd2d6-6e71-4f14-8b83-9e00d7ad52f7",
       "name": "Gmail - Notificar 2sem",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2,
       "position": [
-        -13728,
-        8288
+        -12192,
+        8496
       ],
       "webhookId": "903df7b7-48b3-4324-b31d-6bca8eeada52",
       "credentials": {
@@ -377,13 +377,13 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "d725633c-bde5-410e-a355-90576468c386",
+      "id": "2a299dda-b604-4bb8-956c-ed7c1354ccc0",
       "name": "Webhook - Seguimiento 1mes",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        -14384,
-        8640
+        -12848,
+        8848
       ],
       "webhookId": "g2fit-seg-1mes"
     },
@@ -393,26 +393,26 @@
         "responseBody": "{\"ok\":true,\"mensaje\":\"Evaluación mensual registrada. Procesando tu solicitud...\"}",
         "options": {}
       },
-      "id": "d5ad0090-4217-4f68-8083-6448d7bfa5fb",
+      "id": "a33126bb-1e7f-4278-a80b-177ba068cc56",
       "name": "Respond - OK 1mes",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        -14160,
-        8512
+        -12624,
+        8720
       ]
     },
     {
       "parameters": {
         "jsCode": "// ===== PARSEAR FORMULARIO SEGUIMIENTO 1 MES (form rjK8NR) =====\nconst body = $json.body;\nconst fields = (body.data && body.data.fields) || [];\nconst query = $json.query || {};\n\nconst getField = (key) => {\n  const f = fields.find(f => f.key === key);\n  if (!f) return null;\n  if (Array.isArray(f.value) && f.options) return f.options.filter(o => f.value.includes(o.id)).map(o => o.text).join(', ');\n  return f.value;\n};\n\nconst getHidden = (label) => {\n  const f1 = fields.find(f => f.type === 'HIDDEN_FIELDS' && f.label && f.label.trim().toLowerCase() === label.toLowerCase());\n  if (f1 && f1.value !== null && f1.value !== undefined) return f1.value;\n  const f2 = fields.find(f => f.type === 'HIDDEN_FIELDS' && f.value && typeof f.value === 'object' && !Array.isArray(f.value));\n  if (f2 && f2.value[label] !== undefined) return f2.value[label];\n  return null;\n};\n\nconst cliente_id = (String(query.cliente_id || getHidden('cliente_id') || '').trim()) || null;\nconst dieta_id   = (String(query.dieta_id   || getHidden('dieta_id')   || '').trim()) || null;\n\nif (!cliente_id) {\n  return [{ json: {\n    __debug: true,\n    __error: 'cliente_id no encontrado — el formulario debe abrirse desde el enlace del email con ?cliente_id=XXX',\n    campos_recibidos: fields.map(f => ({ key: f.key, type: f.type, label: f.label, value: f.value })),\n    query_params: query\n  } }];\n}\n\n// Keys reales del formulario rjK8NR (verificados desde pinData)\nconst peso_raw    = getField('question_blMPvg');\nconst peso        = peso_raw !== null && peso_raw !== undefined ? parseFloat(String(peso_raw).replace(',', '.')) : null;\n\nconst c1_raw      = getField('question_AlYZy0');\nconst c2_raw      = getField('question_BGYN05');\nconst c3_raw      = getField('question_kY4qv1');\nconst contorno_1  = c1_raw !== null && c1_raw !== undefined ? parseFloat(String(c1_raw).replace(',', '.')) : null;\nconst contorno_2  = c2_raw !== null && c2_raw !== undefined ? parseFloat(String(c2_raw).replace(',', '.')) : null;\nconst contorno_3  = c3_raw !== null && c3_raw !== undefined ? parseFloat(String(c3_raw).replace(',', '.')) : null;\n\nconst valoracion        = getField('question_vNakKv') || '';    // MULTIPLE_CHOICE — valoración experiencia\nconst cambios_positivos = getField('question_KM4bkA') || '';    // TEXTAREA — cambios positivos\nconst satisfaccion      = getField('question_Ldjlkj');          // LINEAR_SCALE — satisfacción 1-10\nconst facil             = getField('question_pLNavq') || '';    // TEXTAREA — lo más fácil\nconst dificultad        = getField('question_1rY86Q') || '';    // TEXTAREA — lo que más costó\nconst cambiar           = getField('question_MA2BMp') || '';    // TEXTAREA — alimento a cambiar\nconst situaciones_dif   = getField('question_J2r7M4') || '';    // TEXTAREA — situaciones difíciles\nconst habitos           = getField('question_g5V2vl') || '';    // MULTIPLE_CHOICE — hábitos mejorados\nconst objetivo_prox     = getField('question_ylbLzB') || '';    // TEXTAREA — objetivo próximo mes\nconst mejoras           = getField('question_Xe7Xzj') || '';    // TEXTAREA — mejoras para nuevo plan\n\nconst gusto    = [cambios_positivos, facil].filter(Boolean).join(' / ');\nconst no_gusto = [dificultad, situaciones_dif].filter(Boolean).join(' / ');\n\nconst notasPartes = ['Evaluación mensual'];\nif (valoracion)    notasPartes.push('Valoración: ' + valoracion);\nif (satisfaccion !== null && satisfaccion !== undefined) notasPartes.push('Satisfacción: ' + satisfaccion + '/10');\nif (gusto)         notasPartes.push('Gustó: ' + gusto);\nif (no_gusto)      notasPartes.push('No gustó: ' + no_gusto);\nif (cambiar)       notasPartes.push('Cambiaría: ' + cambiar);\nif (habitos)       notasPartes.push('Hábitos: ' + habitos);\nif (objetivo_prox) notasPartes.push('Objetivo próximo mes: ' + objetivo_prox);\nif (mejoras)       notasPartes.push('Mejoras pedidas: ' + mejoras);\n\nreturn [{ json: {\n  cliente_id,\n  dieta_id,\n  peso,\n  contorno_1,\n  contorno_2,\n  contorno_3,\n  gusto,\n  no_gusto,\n  cambiar,\n  valoracion,\n  satisfaccion,\n  habitos,\n  objetivo_prox,\n  mejoras,\n  notas_seguimiento: notasPartes.join(' | '),\n  fecha_medicion: new Date().toISOString().split('T')[0]\n} }];"
       },
-      "id": "51d8e046-ee8f-4dd4-9986-15d7fba0743c",
+      "id": "b5fdd83f-2bf5-4dea-85d7-ac66e53007bc",
       "name": "Code - Parsear Tally 1mes",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -14160,
-        8656
+        -12624,
+        8864
       ]
     },
     {
@@ -451,13 +451,13 @@
           ]
         }
       },
-      "id": "d7bad30d-f8fb-4601-8700-20ebfd3a58a3",
+      "id": "d16f46d1-17fc-4644-8cae-0b57f3d848cd",
       "name": "Supabase - Guardar Medidas 1mes",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "position": [
-        -13936,
-        8656
+        -12400,
+        8864
       ],
       "credentials": {
         "supabaseApi": {
@@ -473,13 +473,13 @@
         "message": "={{ (function() { const d = $('Code - Parsear Tally 1mes NO').first().json; return '<h2 style=\"margin-top:0;color:#0F172A\">Cliente no renueva la dieta</h2><table style=\"border-collapse:collapse;width:100%;font-size:14px\">' + (d.motivo_no ? '<tr><td style=\"padding:8px;border-bottom:1px solid #eee\"><strong>Motivo</strong></td><td style=\"padding:8px;border-bottom:1px solid #eee\">' + d.motivo_no + '</td></tr>' : '') + (d.sugerencias ? '<tr><td style=\"padding:8px;border-bottom:1px solid #eee\"><strong>Sugerencias</strong></td><td style=\"padding:8px;border-bottom:1px solid #eee\">' + d.sugerencias + '</td></tr>' : '') + (d.valoracion ? '<tr><td style=\"padding:8px;border-bottom:1px solid #eee\"><strong>Valoración</strong></td><td style=\"padding:8px;border-bottom:1px solid #eee\">' + d.valoracion + '</td></tr>' : '') + (d.volveria ? '<tr><td style=\"padding:8px\"><strong>¿Volvería?</strong></td><td style=\"padding:8px\">' + d.volveria + '</td></tr>' : '') + '</table><p style=\"color:#888;font-size:12px;margin-top:16px\">Feedback guardado en Supabase.</p>'; })() }}",
         "options": {}
       },
-      "id": "de427b4e-840d-41ec-b3ac-3ced37764ec0",
+      "id": "50f9652e-7fe4-4e74-b1fe-02ca4ce288cf",
       "name": "Gmail - Notificar No Renueva",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2,
       "position": [
-        -13664,
-        9008
+        -12128,
+        9216
       ],
       "webhookId": "fcf87b52-7057-4c86-a308-6055eff74a55",
       "credentials": {
@@ -497,13 +497,13 @@
         "filterType": "string",
         "filterString": "=id=eq.{{ $('Code - Parsear Tally 1mes').first().json.cliente_id }}"
       },
-      "id": "6de3acb9-60ca-427f-86e1-b46001d17f47",
+      "id": "972cbc4d-9060-412d-a2f5-1575f9893a01",
       "name": "Supabase - Obtener Cliente Renovacion",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "position": [
-        -13728,
-        8656
+        -12192,
+        8864
       ],
       "credentials": {
         "supabaseApi": {
@@ -570,13 +570,13 @@
         },
         "options": {}
       },
-      "id": "cec721d3-747a-46ff-a087-a1f16a75ed96",
+      "id": "05fc0ccf-8154-4ea1-80e9-2309517a4517",
       "name": "Stripe - Crear Sesion Renovacion",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
       "position": [
-        -13504,
-        8656
+        -11968,
+        8864
       ],
       "credentials": {
         "httpBearerAuth": {
@@ -592,13 +592,13 @@
         "message": "=<!DOCTYPE html><html lang=\"es\"><head><meta charset=\"UTF-8\"><link href=\"https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap\" rel=\"stylesheet\"></head><body style=\"margin:0;padding:0;background:#f4f4f4;font-family:'Montserrat',Arial,sans-serif;\"><table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#f4f4f4;padding:32px 16px;\"><tr><td align=\"center\"><table width=\"520\" cellpadding=\"0\" cellspacing=\"0\" style=\"max-width:520px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);\"><tr><td style=\"background:#0F172A;padding:24px 32px;text-align:center;\"><img src=\"https://blardvkldwwbhgdmsxhd.supabase.co/storage/v1/object/public/assets/logo_full.png\" alt=\"G2Fit\" style=\"height:50px;max-width:160px;object-fit:contain;filter:brightness(0) invert(1);\" /></td></tr><tr><td style=\"background:#FB5FAB;padding:10px 32px;text-align:center;\"><p style=\"margin:0;color:#fff;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;\">Renovación de Plan Nutricional</p></td></tr><tr><td style=\"padding:36px 36px 28px;\"><h2 style=\"margin:0 0 16px;color:#0F172A;font-size:20px;font-weight:700;\">¡Hola, {{ $('Supabase - Obtener Cliente Renovacion').first().json.nombre }}!</h2><p style=\"margin:0 0 14px;color:#454F5E;font-size:14px;line-height:1.7;\">¡Increíble que hayas completado tu primer mes con el plan! Ha sido un gran paso hacia tu objetivo.</p><p style=\"margin:0 0 24px;color:#454F5E;font-size:14px;line-height:1.7;\">Una vez realizado el pago, Lydia revisará tu nuevo plan nutricional adaptado al feedback que nos has dado. <strong>En un plazo de 2-3 días recibirás tu nueva dieta en el correo.</strong></p><table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td align=\"center\"><a href=\"{{ $json.url }}\" style=\"display:inline-block;background:#FB5FAB;color:#ffffff;font-family:'Montserrat',Arial,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:8px;\">Renovar mi plan — 39,95€ →</a></td></tr></table><p style=\"margin:20px 0 0;color:#94a3b8;font-size:12px;text-align:center;\">Pago único. Lydia revisará y enviará tu plan en 2-3 días.</p></td></tr><tr><td style=\"background:#0F172A;padding:18px 32px;text-align:center;\"><p style=\"margin:0;color:#FB5FAB;font-size:12px;font-weight:700;letter-spacing:1px;\">G2FIT NUTRICIÓN</p></td></tr></table></td></tr></table></body></html>",
         "options": {}
       },
-      "id": "26f5b874-55d3-40e4-8c88-94d2b0263e3b",
+      "id": "c17a1901-90ad-40de-8fa5-72ef606a9968",
       "name": "Gmail - Email Pago Renovacion Cliente",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2,
       "position": [
-        -13280,
-        8656
+        -11744,
+        8864
       ],
       "webhookId": "f3f2234a-bd41-42a0-9956-543634d906cc",
       "credentials": {
@@ -615,13 +615,13 @@
         "message": "={{ (function() { const c = $('Supabase - Obtener Cliente Renovacion').first().json; const f = $('Code - Parsear Tally 1mes').first().json; return '<h2 style=\"margin-top:0;color:#0F172A\">Solicitud de renovación de dieta</h2><p>El cliente <strong>' + c.nombre + ' ' + (c.apellidos || '') + '</strong> ha completado su primer mes y quiere renovar el plan.</p><p>Se le ha enviado el enlace de pago. <strong>Cuando complete el pago, WF2 generará la nueva dieta automáticamente</strong> y recibirás una notificación por separado para revisarla.</p><h3 style=\"color:#0F172A\">Feedback del mes:</h3><table style=\"border-collapse:collapse;width:100%;font-size:14px\">' + (f.valoracion ? '<tr><td style=\"padding:8px;border-bottom:1px solid #eee\"><strong>Valoración</strong></td><td style=\"padding:8px;border-bottom:1px solid #eee\">' + f.valoracion + '/5</td></tr>' : '') + (f.gusto ? '<tr><td style=\"padding:8px;border-bottom:1px solid #eee\"><strong>Le gustó</strong></td><td style=\"padding:8px;border-bottom:1px solid #eee\">' + f.gusto + '</td></tr>' : '') + (f.no_gusto ? '<tr><td style=\"padding:8px;border-bottom:1px solid #eee\"><strong>No le gustó</strong></td><td style=\"padding:8px;border-bottom:1px solid #eee\">' + f.no_gusto + '</td></tr>' : '') + (f.cambiar ? '<tr><td style=\"padding:8px;border-bottom:1px solid #eee\"><strong>Cambiaría</strong></td><td style=\"padding:8px;border-bottom:1px solid #eee\">' + f.cambiar + '</td></tr>' : '') + (f.peso ? '<tr><td style=\"padding:8px\"><strong>Nuevo peso</strong></td><td style=\"padding:8px\">' + f.peso + ' kg</td></tr>' : '') + '</table><p style=\"background:#fdf2f8;padding:14px;border-radius:8px;border-left:4px solid #FB5FAB;margin-top:16px\">Cuando el cliente pague, WF2 generará la nueva dieta y te avisará para revisarla. No necesitas hacer nada ahora.</p>'; })() }}",
         "options": {}
       },
-      "id": "5df326e0-89c7-466e-a90f-81659f8eba6a",
+      "id": "e282f0fc-c52c-405e-a274-60e0d38241cb",
       "name": "Gmail - Notificar Renovacion Nutricionista",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2,
       "position": [
-        -13056,
-        8656
+        -11520,
+        8864
       ],
       "webhookId": "c02cb5ae-0c9b-4e81-a9b9-49cd0bfa330e",
       "credentials": {
@@ -640,13 +640,13 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "57bdc927-0985-454f-89bb-77deb99d8ee2",
+      "id": "c0a39ba2-cbfb-4aac-941d-d7536beb6e7a",
       "name": "Webhook - Seguimiento 1mes NO",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        -14384,
-        8960
+        -12848,
+        9168
       ],
       "webhookId": "g2fit-seg-1mes-no"
     },
@@ -656,26 +656,26 @@
         "responseBody": "{\"ok\":true,\"mensaje\":\"Gracias por tu feedback. ¡Ha sido un placer!\"}",
         "options": {}
       },
-      "id": "beca3bf8-9a6c-477d-9a85-e92822fe491d",
+      "id": "eaf38a76-64cf-465a-9159-73f0e148801f",
       "name": "Respond - OK 1mes NO",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        -14160,
-        8864
+        -12624,
+        9072
       ]
     },
     {
       "parameters": {
         "jsCode": "// ===== PARSEAR FORMULARIO SALIDA / NO RENUEVA =====\nconst body = $json.body;\nconst fields = (body.data && body.data.fields) || [];\nconst query = $json.query || {};\n\nconst getField = (key) => {\n  const f = fields.find(f => f.key === key);\n  if (!f) return null;\n  if (Array.isArray(f.value) && f.options) return f.options.filter(o => f.value.includes(o.id)).map(o => o.text).join(', ');\n  return f.value;\n};\n\nconst getHidden = (label) => {\n  const f1 = fields.find(f => f.type === 'HIDDEN_FIELDS' && f.label && f.label.trim().toLowerCase() === label.toLowerCase());\n  if (f1 && f1.value !== null && f1.value !== undefined) return f1.value;\n  const f2 = fields.find(f => f.type === 'HIDDEN_FIELDS' && f.value && typeof f.value === 'object' && !Array.isArray(f.value));\n  if (f2 && f2.value[label] !== undefined) return f2.value[label];\n  return null;\n};\n\nconst cliente_id = (String(query.cliente_id || getHidden('cliente_id') || '').trim()) || null;\nconst dieta_id   = (String(query.dieta_id   || getHidden('dieta_id')   || '').trim()) || null;\n\nif (!cliente_id) {\n  return [{ json: {\n    __debug: true,\n    __error: 'cliente_id no encontrado en formulario de salida',\n    campos_recibidos: fields.map(f => ({ key: f.key, type: f.type, label: f.label, value: f.value })),\n    query_params: query\n  } }];\n}\n\n// *** Reemplaza estos keys con los de tu formulario Tally NO ***\nconst motivo_no    = getField('question_motivo_no')    || '';\nconst sugerencias  = getField('question_sugerencias')   || '';\nconst valoracion   = getField('question_valoracion_no') || '';\nconst volveria     = getField('question_volveria')      || '';\n\nreturn [{ json: {\n  cliente_id,\n  dieta_id,\n  motivo_no,\n  sugerencias,\n  valoracion,\n  volveria,\n  notas_salida: `Motivo: ${motivo_no} | Sugerencias: ${sugerencias} | Valoración: ${valoracion} | Volvería: ${volveria}`,\n  fecha: new Date().toISOString().split('T')[0]\n} }];"
       },
-      "id": "2d55b0ca-fb5a-4c3c-a24e-532cb0a99de9",
+      "id": "35a73c78-67c9-4356-90e5-5cbd405d1d3b",
       "name": "Code - Parsear Tally 1mes NO",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -14160,
-        9008
+        -12624,
+        9216
       ]
     },
     {
@@ -698,13 +698,116 @@
           ]
         }
       },
-      "id": "a532a114-f97f-4ff7-91b4-5a974b8a5f1c",
+      "id": "466c0e6b-71e9-4f41-a9e7-91e6a904492b",
       "name": "Supabase - Guardar Feedback Salida",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "position": [
-        -13936,
-        9008
+        -12400,
+        9216
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "nEeesz8yShWcFoTO",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "g2fit-renovacion-manual",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "328ae77c-55b0-4d03-ae78-d2e48028380b",
+      "name": "Webhook - Manual Renovacion",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -12848,
+        7792
+      ],
+      "webhookId": "g2fit-renovacion-manual"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"ok\":true,\"mensaje\":\"Procesando envío de renovación...\"}",
+        "options": {}
+      },
+      "id": "3154d052-705b-4a2e-8e2d-3303ed9b00fd",
+      "name": "Respond - OK Renovacion Manual",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -12640,
+        7664
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== RENOVACIÓN MANUAL DESDE GESTOR =====\nconst SUPABASE_URL = 'https://blardvkldwwbhgdmsxhd.supabase.co';\nconst SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsYXJkdmtsZHd3YmhnZG1zeGhkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjAyMzIzMiwiZXhwIjoyMDg3NTk5MjMyfQ.0rYQX80Kmph93qrBpPf3xdnL4Qj4uAo8o6xPWY2l3wM';\nconst hdrs = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };\n\n// Validar token\nconst token = ($('Webhook - Manual Renovacion').first().json.headers || {})['x-g2fit-token'] || '';\nif (token !== 'G2FIT-SEND-a7f3c92d4e8b1') throw new Error('Unauthorized');\n\nconst cliente_id = ($('Webhook - Manual Renovacion').first().json.query || {}).cliente_id;\nif (!cliente_id) throw new Error('cliente_id requerido');\n\n// Obtener cliente\nconst clienteRes = await this.helpers.httpRequest({ method: 'GET', url: `${SUPABASE_URL}/rest/v1/clientes?id=eq.${cliente_id}&limit=1`, headers: hdrs });\nconst cliente = Array.isArray(clienteRes) ? clienteRes[0] : null;\nif (!cliente) throw new Error('Cliente no encontrado: ' + cliente_id);\n\n// Obtener última dieta enviada\nconst dietaRes = await this.helpers.httpRequest({ method: 'GET', url: `${SUPABASE_URL}/rest/v1/dietas_generadas?cliente_id=eq.${cliente_id}&estado=eq.enviada&order=created_at.desc&limit=1`, headers: hdrs });\nconst dieta = Array.isArray(dietaRes) ? dietaRes[0] : null;\nif (!dieta) throw new Error('No hay dieta enviada para este cliente');\n\nconst nombre = cliente.nombre || 'cliente';\nconst OBJETIVOS = { perder_peso: 'perder peso', ganar_masa: 'ganar masa muscular', mantener: 'mantener tu peso', definicion: 'definición muscular' };\nconst obj = OBJETIVOS[cliente.objetivo] || 'mejorar tu salud';\nconst pesoActual = cliente.peso_actual ? `${cliente.peso_actual} kg` : null;\n\nconst urlSi = `https://tally.so/r/rjK8NR?cliente_id=${cliente.id}&dieta_id=${dieta.id}&tipo=1mes_si`;\nconst urlNo = `https://tally.so/r/REEMPLAZAR_FORM_NO?cliente_id=${cliente.id}&dieta_id=${dieta.id}&tipo=1mes_no`;\n\nconst asunto = `${nombre}, ¡un mes trabajando para ${obj}! ¿Continuamos? — G2Fit Nutrición`;\n\nconst html = `<!DOCTYPE html><html lang=\"es\"><head><meta charset=\"UTF-8\"></head><body style=\"margin:0;padding:0;font-family:Arial,sans-serif;background:#f5f5f5\"><div style=\"background:linear-gradient(135deg,#0F172A,#1e293b);padding:30px 24px;text-align:center\"><h1 style=\"color:white;margin:0;font-size:26px\">G2Fit Nutrición</h1><p style=\"color:#fce4ec;margin:8px 0 0\">Evaluación del primer mes</p></div><div style=\"background:white;padding:32px 24px;border-bottom:3px solid #FB5FAB\"><h2 style=\"color:#0F172A;margin-top:0\">¡Hola, ${nombre}!</h2><p style=\"font-size:15px;line-height:1.6;color:#333\">¡Llevas <strong>un mes completo</strong> trabajando para <strong>${obj}</strong>! Ha sido un gran logro y queremos saber cómo te ha ido.</p>${pesoActual ? `<p style=\"font-size:14px;color:#666;background:#f8f9fa;padding:12px 16px;border-radius:8px;border-left:3px solid #FB5FAB\">Empezaste con <strong>${pesoActual}</strong>. Lydia Sarrió quiere saber cómo evolucionaste.</p>` : ''}<p style=\"font-size:15px;line-height:1.6;color:#333\"><strong>¿Qué quieres hacer ahora?</strong></p></div><div style=\"background:#fdf2f8;padding:32px 24px\"><div style=\"text-align:center;margin-bottom:20px\"><p style=\"font-size:15px;font-weight:bold;color:#0F172A;margin-bottom:12px\">Continuar hacia mi objetivo</p><a href=\"${urlSi}\" style=\"background:#FB5FAB;color:white;padding:16px 32px;border-radius:10px;text-decoration:none;font-size:16px;font-weight:bold;display:inline-block\">Sí, quiero el mes 2 →</a><p style=\"font-size:12px;color:#888;margin-top:8px\">Rellena el feedback · Lydia personalizará tu nuevo plan</p></div><hr style=\"border:none;border-top:1px solid #eee;margin:20px 0\"><div style=\"text-align:center\"><p style=\"font-size:14px;color:#666;margin-bottom:12px\">Prefiero pausar por ahora</p><a href=\"${urlNo}\" style=\"background:#64748b;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:14px;display:inline-block\">No, lo dejo por ahora</a></div></div><div style=\"background:#0F172A;padding:20px;text-align:center\"><p style=\"margin:0;color:white;font-weight:bold\">G2Fit Nutrición</p><p style=\"margin:4px 0 0;color:#94a3b8;font-size:12px\">Tu bienestar, nuestra misión</p></div></body></html>`;\n\nreturn [{ json: { cliente_email: cliente.email, cliente_nombre: nombre, asunto, html_email: html, dieta_id: dieta.id, cliente_id: cliente.id } }];"
+      },
+      "id": "d0c36a3b-c1f2-4c07-9c23-e6d3233ca791",
+      "name": "Code - Preparar Renovacion Manual",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -12640,
+        7904
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.cliente_email }}",
+        "subject": "={{ $json.asunto }}",
+        "message": "={{ $json.html_email }}",
+        "options": {}
+      },
+      "id": "b2e1c9f8-d6cc-4bf9-931b-bf4648c3a641",
+      "name": "Gmail - Enviar Renovacion Manual",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        -12448,
+        7904
+      ],
+      "webhookId": "4460f0aa-d0e6-4b69-8835-e591a2228784",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "RZGUSaOkiTerUP8u",
+          "name": "G2fit dietas"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "dietas_generadas",
+        "filterType": "string",
+        "filterString": "=id=eq.{{ $('Code - Preparar Renovacion Manual').first().json.dieta_id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "email_dia28_enviado",
+              "fieldValue": "=true"
+            },
+            {
+              "fieldId": "email_dia28_fecha",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "0521111e-d6b0-4557-ab8a-12cf77842330",
+      "name": "Supabase - Marcar Renovacion Enviada",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -12240,
+        7904
       ],
       "credentials": {
         "supabaseApi": {
@@ -997,6 +1100,44 @@
           }
         ]
       ]
+    },
+    "Webhook - Manual Renovacion": {
+      "main": [
+        [
+          {
+            "node": "Respond - OK Renovacion Manual",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code - Preparar Renovacion Manual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Preparar Renovacion Manual": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Enviar Renovacion Manual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail - Enviar Renovacion Manual": {
+      "main": [
+        [
+          {
+            "node": "Supabase - Marcar Renovacion Enviada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -1008,7 +1149,7 @@
     "errorWorkflow": "qeKgNuBOxAj1GaGb",
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "b75c9146-a0ec-4c71-a779-9c56026c2f2b",
+  "versionId": "193bd9aa-d2f1-43e5-a4d0-1a2fc7a36766",
   "meta": {
     "instanceId": "589208084f93e2d99b2f35ec21d5d12f9965377a406958ac814e644256241513"
   },
