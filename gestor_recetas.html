@@ -2093,11 +2093,28 @@
             onclick="enviarDietaWebhook()">✅ Enviar al cliente</button>
           <button class="btn" id="dm-btn-regenerar"
             style="background:rgba(99,102,241,0.15);color:#818cf8;border:1px solid rgba(99,102,241,0.3);flex:1"
-            onclick="regenerarDietaWebhook()">🔄 Generar de nuevo</button>
+            onclick="mostrarPanelRegeneracion()">🔄 Generar de nuevo</button>
           <button class="btn" id="dm-btn-rechazar"
             style="background:rgba(239,68,68,0.15);color:var(--red);border:1px solid rgba(239,68,68,0.3);flex:1"
             onclick="rechazarDieta()">❌ Rechazar</button>
           <button class="btn btn-secondary" onclick="guardarNotasDieta()" style="flex:1">💾 Guardar notas</button>
+        </div>
+        <!-- Panel de instrucciones para regeneración -->
+        <div id="dm-panel-regen" style="display:none;margin-top:14px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:10px;padding:14px">
+          <div style="font-size:13px;font-weight:600;color:#818cf8;margin-bottom:10px">¿Qué hay que cambiar en esta dieta?</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px" id="dm-regen-chips">
+            <label style="cursor:pointer"><input type="checkbox" value="Demasiado repetitiva, necesita más variedad de platos" style="margin-right:4px"><span style="font-size:12px;background:rgba(99,102,241,0.15);padding:4px 10px;border-radius:20px;color:#818cf8">Muy repetitiva</span></label>
+            <label style="cursor:pointer"><input type="checkbox" value="Las cantidades de proteína son insuficientes, aumentarlas" style="margin-right:4px"><span style="font-size:12px;background:rgba(99,102,241,0.15);padding:4px 10px;border-radius:20px;color:#818cf8">Pocas proteínas</span></label>
+            <label style="cursor:pointer"><input type="checkbox" value="Los desayunos son demasiado similares, necesita más variedad en el desayuno" style="margin-right:4px"><span style="font-size:12px;background:rgba(99,102,241,0.15);padding:4px 10px;border-radius:20px;color:#818cf8">Desayunos poco variados</span></label>
+            <label style="cursor:pointer"><input type="checkbox" value="Las recetas son demasiado complejas de preparar, simplificarlas" style="margin-right:4px"><span style="font-size:12px;background:rgba(99,102,241,0.15);padding:4px 10px;border-radius:20px;color:#818cf8">Demasiado compleja</span></label>
+            <label style="cursor:pointer"><input type="checkbox" value="Hay demasiada pasta o arroz, reducir y añadir otras fuentes de carbohidrato" style="margin-right:4px"><span style="font-size:12px;background:rgba(99,102,241,0.15);padding:4px 10px;border-radius:20px;color:#818cf8">Demasiada pasta/arroz</span></label>
+            <label style="cursor:pointer"><input type="checkbox" value="Las calorías totales no se ajustan bien al objetivo, recalcularlas" style="margin-right:4px"><span style="font-size:12px;background:rgba(99,102,241,0.15);padding:4px 10px;border-radius:20px;color:#818cf8">Calorías desajustadas</span></label>
+          </div>
+          <textarea id="dm-regen-notas" placeholder="Añade instrucciones específicas para la nueva dieta… Ej: no incluir salmón, añadir más legumbres, cenas más ligeras..." style="width:100%;min-height:72px;background:rgba(255,255,255,0.05);border:1px solid rgba(99,102,241,0.3);border-radius:8px;color:#F1F5F9;padding:10px;font-size:13px;resize:vertical;box-sizing:border-box"></textarea>
+          <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
+            <button class="btn btn-secondary" onclick="cerrarPanelRegeneracion()" style="padding:7px 16px;font-size:13px">Cancelar</button>
+            <button class="btn" onclick="confirmarRegeneracion()" style="background:#818cf8;color:#fff;padding:7px 16px;font-size:13px">🔄 Confirmar regeneración</button>
+          </div>
         </div>
         <div id="dm-feedback" style="margin-top:12px;font-size:13px;text-align:center;min-height:18px"></div>
       </div>
@@ -4173,15 +4190,38 @@ ${trimmed}`;
     }
 
     // ═══ REGENERAR DIETA VÍA WEBHOOK N8N ═══
-    async function regenerarDietaWebhook() {
+    function mostrarPanelRegeneracion() {
       if (!currentDieta) return;
-      if (!confirm(`¿Generar una nueva dieta para ${currentDieta.clientes?.nombre || 'este cliente'}? La dieta actual se cancelará.`)) return;
+      document.getElementById('dm-panel-regen').style.display = 'block';
+      document.getElementById('dm-btn-regenerar').style.display = 'none';
+      document.getElementById('dm-regen-notas').value = '';
+      document.querySelectorAll('#dm-regen-chips input[type=checkbox]').forEach(cb => cb.checked = false);
+    }
+
+    function cerrarPanelRegeneracion() {
+      document.getElementById('dm-panel-regen').style.display = 'none';
+      document.getElementById('dm-btn-regenerar').style.display = 'flex';
+    }
+
+    async function confirmarRegeneracion() {
+      const chips = [...document.querySelectorAll('#dm-regen-chips input[type=checkbox]:checked')].map(cb => cb.value);
+      const notasLibres = document.getElementById('dm-regen-notas').value.trim();
+      const todasLasNotas = [...chips, ...(notasLibres ? [notasLibres] : [])].join(' | ');
+      await regenerarDietaWebhook(todasLasNotas);
+    }
+
+    async function regenerarDietaWebhook(notasRegen = '') {
+      if (!currentDieta) return;
       const fb = document.getElementById('dm-feedback');
       fb.textContent = 'Solicitando regeneración...';
       fb.style.color = 'var(--muted)';
+      document.getElementById('dm-panel-regen').style.display = 'none';
       try {
         // 1. Disparar webhook regenerar con autenticación por cabecera
-        await dispararWebhook(`${N8N_URL}/webhook/regenerar-dieta?dieta_id=${currentDieta.id}`);
+        const url = notasRegen
+          ? `${N8N_URL}/webhook/regenerar-dieta?dieta_id=${currentDieta.id}&notas_regen=${encodeURIComponent(notasRegen)}`
+          : `${N8N_URL}/webhook/regenerar-dieta?dieta_id=${currentDieta.id}`;
+        await dispararWebhook(url);
 
         // 2. Marcar la dieta actual como cancelada en Supabase
         const res = await fetch(`${SUPABASE_URL}/rest/v1/dietas_generadas?id=eq.${currentDieta.id}`, {
