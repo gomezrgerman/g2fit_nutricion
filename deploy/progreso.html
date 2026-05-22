@@ -95,7 +95,8 @@
         const c = clientes[0];
         const r2 = await fetch(`${SUPABASE_URL}/rest/v1/seguimiento_clientes?cliente_id=eq.${c.id}&order=fecha.asc`, { headers: h });
         const seguimiento = r2.ok ? await r2.json() : [];
-        render(c, seguimiento);
+        const variant = parseInt(new URLSearchParams(window.location.search).get('v') || '0');
+        render(c, seguimiento, variant);
       } catch(e) { showError(e.message); }
     }
 
@@ -103,96 +104,81 @@
       document.getElementById('app').innerHTML = `<div class="empty"><div class="empty-icon">❌</div><p>${msg}</p></div>`;
     }
 
-    function generarMensaje(c, seguimiento, difPeso, primera, ultima) {
+    function generarMensaje(c, seguimiento, difPeso, primera, ultima, variant = 0) {
       const nombre = (c.nombre || '').split(' ')[0] || 'campeón';
       const obj = c.objetivo;
       const numReg = seguimiento.length;
       const difNum = difPeso !== null ? parseFloat(difPeso) : null;
+      const v = variant === 1 ? 1 : 0;
 
       const difContorno2 = (ultima?.contorno_abdominal_2 && primera?.contorno_abdominal_2)
         ? parseFloat((ultima.contorno_abdominal_2 - primera.contorno_abdominal_2).toFixed(1))
         : null;
 
-      // Sin datos o primer registro
       if (numReg <= 1) {
-        return {
-          titulo: '¡Bienvenido/a a tu plan personalizado!',
-          texto: `${nombre}, acabas de dar el paso más importante: empezar. Los primeros días son de adaptación — cada comida siguiendo el plan es una victoria pequeña que va construyendo algo grande. Confía en el proceso y en el trabajo que hemos hecho juntos para diseñar tu dieta.`
-        };
+        return v === 0
+          ? { titulo: 'Bienvenida a tu plan personalizado', texto: `${nombre}, acabas de dar el paso más importante: empezar. Los primeros días son de adaptación — cada comida siguiendo el plan es una victoria que va construyendo algo grande. Confía en el proceso.` }
+          : { titulo: 'El plan está listo para ti', texto: `${nombre}, la dieta que tienes está diseñada para tu objetivo y tu ritmo de vida. Los primeros días pueden ser de ajuste — es normal. Si tienes dudas, no dudes en consultarlas con Lydia.` };
       }
 
-      // Objetivo: perder peso o definición
       if (obj === 'perder_peso' || obj === 'definicion') {
         if (difNum <= -4) {
-          const extras = difContorno2 !== null && difContorno2 < 0
-            ? ` Tu contorno abdominal también ha bajado ${Math.abs(difContorno2)} cm — eso es grasa real que ha desaparecido.`
-            : '';
-          return {
-            titulo: '¡Un progreso que habla por sí solo!',
-            texto: `${nombre}, llevas ${Math.abs(difNum)} kg menos desde que empezaste.${extras} Ese resultado no es casualidad — es consecuencia directa de tu constancia con la dieta. Sigue igual, los mejores cambios aún están por llegar.`
-          };
+          const xtr = difContorno2 !== null && difContorno2 < 0 ? ` Tu contorno abdominal también ha bajado ${Math.abs(difContorno2)} cm.` : '';
+          return v === 0
+            ? { titulo: 'Los resultados están ahí', texto: `${nombre}, desde que empezaste llevas ${Math.abs(difNum)} kg menos.${xtr} Eso no pasa por casualidad — cada semana de plan tiene su parte en este resultado. Lo más difícil ya lo has demostrado: que puedes hacerlo.` }
+            : { titulo: 'Un trabajo que se nota', texto: `${nombre}, ${Math.abs(difNum)} kg menos desde el inicio es un cambio real en tu composición corporal.${xtr} El plan está funcionando. Sigue con la misma constancia y los resultados van a continuar llegando.` };
         }
         if (difNum <= -2) {
-          return {
-            titulo: '¡Vas exactamente por donde toca!',
-            texto: `${nombre}, ${Math.abs(difNum)} kg menos es el ritmo ideal para perder grasa sin perder músculo. Este proceso no es rápido, pero sí duradero. Cada semana que mantienes el plan es una semana que tu cuerpo mejora por dentro aunque la báscula no siempre lo refleje igual.`
-          };
+          return v === 0
+            ? { titulo: 'El ritmo correcto', texto: `${nombre}, llevas ${Math.abs(difNum)} kg menos y vas al ritmo que buscamos para que la pérdida sea de grasa sin perder músculo. Este tipo de progreso, aunque parece lento, es el que se mantiene.` }
+            : { titulo: 'Progresando bien', texto: `${nombre}, bajar ${Math.abs(difNum)} kg es exactamente lo que esperábamos en esta fase del plan. Tu cuerpo está respondiendo y tú estás poniendo el trabajo. Sigue así.` };
         }
         if (difNum < 0) {
-          const extras = difContorno2 !== null && difContorno2 < 0
+          const xtr = difContorno2 !== null && difContorno2 < 0
             ? ` Y fíjate que el contorno abdominal ya ha bajado ${Math.abs(difContorno2)} cm — a veces el cuerpo cambia antes de que lo haga el peso.`
             : '';
-          return {
-            titulo: 'El cambio ya ha empezado',
-            texto: `${nombre}, los primeros cambios ya son visibles.${extras} El cuerpo tarda unas semanas en entrar en ritmo, pero la tendencia ya es la correcta. No subestimes lo que estás haciendo — la constancia aquí vale más que cualquier esfuerzo puntual.`
-          };
+          return v === 0
+            ? { titulo: 'La tendencia es la correcta', texto: `${nombre}, el peso ya lleva ${Math.abs(difNum)} kg menos respecto al inicio.${xtr} Las primeras semanas son de adaptación — lo importante es que la dirección es la correcta. Mantén el plan.` }
+            : { titulo: 'Los primeros cambios ya son visibles', texto: `${nombre}, los primeros kilos son siempre los más costosos.${xtr} El cuerpo tarda unas semanas en adaptarse, pero ya está respondiendo. Dale tiempo y sigue con la misma constancia.` };
         }
         if (difNum < 1) {
-          return {
-            titulo: 'El cuerpo se está ajustando',
-            texto: `${nombre}, el peso puede fluctuar en las primeras semanas por retención de líquidos, ciclos hormonales o cambios en la masa muscular. Lo importante no es el número de hoy, sino la tendencia de las próximas semanas. Si estás siguiendo el plan, los resultados se verán — dale tiempo.`
-          };
+          return v === 0
+            ? { titulo: 'El cuerpo se está adaptando', texto: `${nombre}, es normal que el peso no se mueva al mismo ritmo siempre. Hay semanas en que el cuerpo retiene líquidos o ajusta su composición sin que la báscula lo refleje. Si sigues con el plan, los resultados van a volver.` }
+            : { titulo: 'Los cambios no siempre se miden en la báscula', texto: `${nombre}, una fase sin gran variación de peso no significa que el plan no esté funcionando. Tu cuerpo puede estar cambiando por dentro aunque la báscula no lo muestre todavía. Habla con Lydia si quieres revisar algún aspecto del plan.` };
         }
-        return {
-          titulo: 'Momento de ponerse en contacto',
-          texto: `${nombre}, tu cuerpo puede estar respondiendo de forma diferente a lo esperado. Eso no es un fracaso — es información útil para ajustar el plan. Te recomiendo hablar con Lydia para revisar si hay algo que podamos adaptar mejor a tu ritmo de vida actual.`
-        };
+        return v === 0
+          ? { titulo: 'Momento de revisarlo juntos', texto: `${nombre}, tu cuerpo puede estar respondiendo de forma diferente a lo esperado. Eso no es un fracaso — es información útil para ajustar el plan. Te recomiendo hablar con Lydia para revisar qué podemos adaptar.` }
+          : { titulo: 'El plan puede necesitar ajustes', texto: `${nombre}, hay ocasiones en que el primer enfoque no es el definitivo. Lo importante es ir afinando hasta encontrar lo que mejor funciona para ti. Contacta con Lydia cuando puedas para revisarlo.` };
       }
 
-      // Objetivo: ganar masa muscular
       if (obj === 'ganar_masa') {
         if (difNum >= 3) {
-          return {
-            titulo: '¡La base muscular está creciendo!',
-            texto: `${nombre}, ${difNum} kg ganados desde el inicio es una señal muy positiva de que el plan está funcionando. Si estás entrenando con consistencia, buena parte de ese peso es músculo real. Sigue así — la ganancia lenta y constante es la que se queda.`
-          };
+          return v === 0
+            ? { titulo: 'La ganancia muscular está en marcha', texto: `${nombre}, llevas ${difNum} kg más desde que empezaste. Si estás entrenando con regularidad, buena parte de ese peso corresponde a tejido muscular. Es el resultado del plan y del trabajo que estás poniendo. Sigue igual.` }
+            : { titulo: 'El plan está dando resultados', texto: `${nombre}, ${difNum} kg ganados es una señal clara de que el plan está funcionando. La ganancia real es siempre lenta y progresiva — lo que ves en la báscula es trabajo acumulado. Mantén la constancia.` };
         }
         if (difNum >= 1) {
-          return {
-            titulo: 'La base se está construyendo',
-            texto: `${nombre}, ${difNum} kg ganados es exactamente el ritmo que buscamos. La ganancia muscular es por naturaleza un proceso lento, pero lo que se construye bien, dura. Cada entreno y cada comida dentro del plan suman más de lo que parece en el día a día.`
-          };
+          return v === 0
+            ? { titulo: 'La base se está construyendo', texto: `${nombre}, llevas ${difNum} kg más desde el inicio. El cuerpo necesita tiempo para ganar masa muscular de forma sólida — unos kilogramos ganados con el plan correcto valen más que ganancias rápidas.` }
+            : { titulo: 'Construyendo en la dirección correcta', texto: `${nombre}, ${difNum} kg ganados es el ritmo que buscamos en esta fase. La ganancia muscular se construye semana a semana — sigue con el plan y los cambios se irán notando más con el tiempo.` };
         }
-        return {
-          titulo: 'Los cimientos son lo más importante',
-          texto: `${nombre}, en las primeras semanas el cuerpo se adapta sin que la báscula refleje todos los cambios que están ocurriendo. La fuerza y el rendimiento mejoran antes que el número. Mantén la dieta ajustada al plan y dale al cuerpo el tiempo que necesita.`
-        };
+        return v === 0
+          ? { titulo: 'Los cimientos primero', texto: `${nombre}, en las primeras semanas el cuerpo se adapta sin que el peso cambie mucho. La fuerza y el rendimiento en los entrenamientos mejoran antes que el número de la báscula. Sigue con el plan y dale tiempo al proceso.` }
+          : { titulo: 'El proceso lleva su tiempo', texto: `${nombre}, construir masa muscular es el proceso más lento en nutrición deportiva. Lo que el cuerpo construye bien y despacio, se queda. Las semanas de constancia con el plan y los entrenamientos se van sumando.` };
       }
 
-      // Objetivo: mantener
+      // mantener
       if (Math.abs(difNum) <= 1.5) {
-        return {
-          titulo: '¡Control de libro!',
-          texto: `${nombre}, mantener el peso es más difícil de lo que parece — requiere equilibrio, constancia y saber escuchar al cuerpo. Tu seguimiento demuestra que lo tienes controlado. Sigue con los mismos hábitos, porque claramente están funcionando.`
-        };
+        return v === 0
+          ? { titulo: 'El peso se mantiene estable', texto: `${nombre}, mantener el peso dentro de esos márgenes requiere consistencia y saber escuchar al cuerpo. Lo estás haciendo bien. Sigue con los mismos hábitos.` }
+          : { titulo: 'Equilibrio controlado', texto: `${nombre}, una variación mínima respecto al inicio es exactamente lo que buscamos en un objetivo de mantenimiento. El plan está cumpliendo su función.` };
       }
-      return {
-        titulo: 'Todo bajo control',
-        texto: `${nombre}, hay una pequeña oscilación respecto al inicio, pero eso es completamente normal. El mantenimiento no es una línea plana — tiene márgenes naturales. Si quieres ajustar algo, Lydia puede revisar el plan contigo.`
-      };
+      return v === 0
+        ? { titulo: 'Pequeño ajuste en marcha', texto: `${nombre}, hay una pequeña oscilación respecto al objetivo de mantenimiento, pero eso es normal y reversible. Si quieres revisar algún aspecto del plan, Lydia puede ajustar lo que sea necesario.` }
+        : { titulo: 'El mantenimiento tiene sus márgenes', texto: `${nombre}, el peso nunca es una línea plana — tiene oscilaciones naturales. Lo importante es la tendencia a medio plazo. Si la oscilación persiste, podemos hacer pequeños ajustes en el plan.` };
     }
 
-    function render(c, seguimiento) {
+    function render(c, seguimiento, variant = 0) {
       const nombre = `${c.nombre||''} ${c.apellidos||''}`.trim();
       const ultima = seguimiento.length ? seguimiento[seguimiento.length - 1] : null;
       const primera = seguimiento.length ? seguimiento[0] : null;
@@ -212,7 +198,7 @@
         colorVariacion = (esPositivo === esBuenoCambioPositivo) ? 'var(--pink)' : '#ef4444';
       }
 
-      const msg = generarMensaje(c, seguimiento, difPeso, primera, ultima);
+      const msg = generarMensaje(c, seguimiento, difPeso, primera, ultima, variant);
 
       const html = `
         <div class="hero">

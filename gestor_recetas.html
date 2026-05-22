@@ -3107,10 +3107,112 @@
         } catch(e) { showToast('Error generando enlace: '+e.message,'error'); return; }
       }
       const origin = window.location.origin || 'https://tu-dominio.com';
-      const url = `${origin}/progreso?c=${token}`;
+      const baseUrl = `${origin}/progreso?c=${token}`;
+
+      const primera = seguimientoData.length ? seguimientoData[0] : null;
+      const ultima = seguimientoData.length ? seguimientoData[seguimientoData.length - 1] : null;
+      const pesoActual = ultima?.peso || currentCliente.peso_actual;
+      const pesoInicial = primera?.peso || currentCliente.peso_actual;
+      const difPeso = pesoActual && pesoInicial ? (pesoActual - pesoInicial).toFixed(1) : null;
+      const msgA = calcProgresoMensaje(currentCliente, seguimientoData, difPeso, primera, ultima, 0);
+      const msgB = calcProgresoMensaje(currentCliente, seguimientoData, difPeso, primera, ultima, 1);
+      mostrarModalCompartirProgreso(baseUrl, msgA, msgB);
+    }
+
+    function calcProgresoMensaje(c, seg, difPeso, primera, ultima, v) {
+      const n = (c.nombre || '').split(' ')[0] || 'tú';
+      const obj = c.objetivo;
+      const nr = seg.length;
+      const d = difPeso !== null ? parseFloat(difPeso) : null;
+      const dc2 = (ultima?.contorno_abdominal_2 && primera?.contorno_abdominal_2)
+        ? parseFloat((ultima.contorno_abdominal_2 - primera.contorno_abdominal_2).toFixed(1)) : null;
+
+      if (nr <= 1) return v === 0
+        ? { titulo: 'Bienvenida a tu plan personalizado', texto: `${n}, acabas de dar el paso más importante: empezar. Los primeros días son de adaptación — cada comida siguiendo el plan es una victoria que va construyendo algo grande. Confía en el proceso.` }
+        : { titulo: 'El plan está listo para ti', texto: `${n}, la dieta que tienes está diseñada para tu objetivo y tu ritmo de vida. Los primeros días pueden ser de ajuste — es normal. Si tienes dudas, no dudes en consultarlas con Lydia.` };
+
+      if (obj === 'perder_peso' || obj === 'definicion') {
+        if (d <= -4) {
+          const xtr = dc2 !== null && dc2 < 0 ? ` Tu contorno abdominal también ha bajado ${Math.abs(dc2)} cm.` : '';
+          return v === 0
+            ? { titulo: 'Los resultados están ahí', texto: `${n}, desde que empezaste llevas ${Math.abs(d)} kg menos.${xtr} Eso no pasa por casualidad — cada semana de plan tiene su parte en este resultado. Lo más difícil ya lo has demostrado: que puedes hacerlo.` }
+            : { titulo: 'Un trabajo que se nota', texto: `${n}, ${Math.abs(d)} kg menos desde el inicio es un cambio real en tu composición corporal.${xtr} El plan está funcionando. Sigue con la misma constancia y los resultados van a continuar llegando.` };
+        }
+        if (d <= -2) return v === 0
+          ? { titulo: 'El ritmo correcto', texto: `${n}, llevas ${Math.abs(d)} kg menos y vas al ritmo que buscamos para que la pérdida sea de grasa sin perder músculo. Este tipo de progreso, aunque parece lento, es el que se mantiene.` }
+          : { titulo: 'Progresando bien', texto: `${n}, bajar ${Math.abs(d)} kg es exactamente lo que esperábamos en esta fase del plan. Tu cuerpo está respondiendo y tú estás poniendo el trabajo. Sigue así.` };
+        if (d < 0) {
+          const xtr = dc2 !== null && dc2 < 0 ? ` Y fíjate que el contorno abdominal ya ha bajado ${Math.abs(dc2)} cm — a veces el cuerpo cambia antes de que lo haga el peso.` : '';
+          return v === 0
+            ? { titulo: 'La tendencia es la correcta', texto: `${n}, el peso ya lleva ${Math.abs(d)} kg menos respecto al inicio.${xtr} Las primeras semanas son de adaptación — lo importante es que la dirección es la correcta. Mantén el plan.` }
+            : { titulo: 'Los primeros cambios ya son visibles', texto: `${n}, los primeros kilos son siempre los más costosos.${xtr} El cuerpo tarda unas semanas en adaptarse, pero ya está respondiendo. Dale tiempo y sigue con la misma constancia.` };
+        }
+        if (d < 1) return v === 0
+          ? { titulo: 'El cuerpo se está adaptando', texto: `${n}, es normal que el peso no se mueva al mismo ritmo siempre. Hay semanas en que el cuerpo retiene líquidos o ajusta su composición sin que la báscula lo refleje. Si sigues con el plan, los resultados van a volver.` }
+          : { titulo: 'Los cambios no siempre se miden en la báscula', texto: `${n}, una fase sin gran variación de peso no significa que el plan no esté funcionando. Tu cuerpo puede estar cambiando por dentro aunque la báscula no lo muestre todavía. Habla con Lydia si quieres revisar algún aspecto.` };
+        return v === 0
+          ? { titulo: 'Momento de revisarlo juntos', texto: `${n}, tu cuerpo puede estar respondiendo de forma diferente a lo esperado. Eso no es un fracaso — es información útil para ajustar el plan. Te recomiendo hablar con Lydia para revisar qué podemos adaptar.` }
+          : { titulo: 'El plan puede necesitar ajustes', texto: `${n}, hay ocasiones en que el primer enfoque no es el definitivo. Lo importante es ir afinando hasta encontrar lo que mejor funciona para ti. Contacta con Lydia cuando puedas para revisarlo.` };
+      }
+      if (obj === 'ganar_masa') {
+        if (d >= 3) return v === 0
+          ? { titulo: 'La ganancia muscular está en marcha', texto: `${n}, llevas ${d} kg más desde que empezaste. Si estás entrenando con regularidad, buena parte de ese peso corresponde a tejido muscular. Es el resultado del plan y del trabajo que estás poniendo. Sigue igual.` }
+          : { titulo: 'El plan está dando resultados', texto: `${n}, ${d} kg ganados es una señal clara de que el plan está funcionando. La ganancia real es siempre lenta y progresiva — lo que ves en la báscula es trabajo acumulado. Mantén la constancia.` };
+        if (d >= 1) return v === 0
+          ? { titulo: 'La base se está construyendo', texto: `${n}, llevas ${d} kg más desde el inicio. El cuerpo necesita tiempo para ganar masa muscular de forma sólida — unos kilogramos ganados con el plan correcto valen más que ganancias rápidas.` }
+          : { titulo: 'Construyendo en la dirección correcta', texto: `${n}, ${d} kg ganados es el ritmo que buscamos en esta fase. La ganancia muscular se construye semana a semana — sigue con el plan y los cambios se irán notando más con el tiempo.` };
+        return v === 0
+          ? { titulo: 'Los cimientos primero', texto: `${n}, en las primeras semanas el cuerpo se adapta sin que el peso cambie mucho. La fuerza y el rendimiento en los entrenamientos mejoran antes que el número de la báscula. Sigue con el plan y dale tiempo al proceso.` }
+          : { titulo: 'El proceso lleva su tiempo', texto: `${n}, construir masa muscular es el proceso más lento en nutrición deportiva. Lo que el cuerpo construye bien y despacio, se queda. Las semanas de constancia con el plan y los entrenamientos se van sumando.` };
+      }
+      if (Math.abs(d) <= 1.5) return v === 0
+        ? { titulo: 'El peso se mantiene estable', texto: `${n}, mantener el peso dentro de esos márgenes requiere consistencia y saber escuchar al cuerpo. Lo estás haciendo bien. Sigue con los mismos hábitos.` }
+        : { titulo: 'Equilibrio controlado', texto: `${n}, una variación mínima respecto al inicio es exactamente lo que buscamos en un objetivo de mantenimiento. El plan está cumpliendo su función.` };
+      return v === 0
+        ? { titulo: 'Pequeño ajuste en marcha', texto: `${n}, hay una pequeña oscilación respecto al objetivo de mantenimiento, pero eso es normal y reversible. Si quieres revisar algún aspecto del plan, Lydia puede ajustar lo que sea necesario.` }
+        : { titulo: 'El mantenimiento tiene sus márgenes', texto: `${n}, el peso nunca es una línea plana — tiene oscilaciones naturales. Lo importante es la tendencia a medio plazo. Si la oscilación persiste, podemos hacer pequeños ajustes en el plan.` };
+    }
+
+    function mostrarModalCompartirProgreso(baseUrl, msgA, msgB) {
+      const existing = document.getElementById('modal-compartir-progreso');
+      if (existing) existing.remove();
+      const urlB = `${baseUrl}&v=1`;
+      const modal = document.createElement('div');
+      modal.id = 'modal-compartir-progreso';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+      modal.innerHTML = `
+        <div style="background:#1E293B;border:1px solid rgba(251,95,171,0.2);border-radius:16px;padding:24px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+            <div style="font-size:15px;font-weight:600">Elegir mensaje para compartir</div>
+            <button id="mcpClose" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:20px;line-height:1;padding:0 4px">&times;</button>
+          </div>
+          <div style="background:#162240;border:1px solid rgba(251,95,171,0.15);border-radius:12px;padding:16px;margin-bottom:12px">
+            <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Versión A</div>
+            <div style="font-size:13px;font-weight:600;color:#FB5FAB;margin-bottom:6px">${msgA.titulo}</div>
+            <div style="font-size:12px;color:#94a3b8;line-height:1.55;margin-bottom:12px">${msgA.texto}</div>
+            <button id="mcpCopyA" style="background:rgba(251,95,171,0.15);color:#FB5FAB;border:1px solid rgba(251,95,171,0.3);border-radius:8px;padding:7px 14px;font-size:12px;cursor:pointer;width:100%">Copiar enlace</button>
+          </div>
+          <div style="background:#162240;border:1px solid rgba(251,95,171,0.15);border-radius:12px;padding:16px">
+            <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Versión B</div>
+            <div style="font-size:13px;font-weight:600;color:#FB5FAB;margin-bottom:6px">${msgB.titulo}</div>
+            <div style="font-size:12px;color:#94a3b8;line-height:1.55;margin-bottom:12px">${msgB.texto}</div>
+            <button id="mcpCopyB" style="background:rgba(251,95,171,0.15);color:#FB5FAB;border:1px solid rgba(251,95,171,0.3);border-radius:8px;padding:7px 14px;font-size:12px;cursor:pointer;width:100%">Copiar enlace</button>
+          </div>
+        </div>
+      `;
+      modal.querySelector('#mcpClose').addEventListener('click', () => modal.remove());
+      modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+      modal.querySelector('#mcpCopyA').addEventListener('click', async function() { await copiarEnlaceProgreso(baseUrl, this); });
+      modal.querySelector('#mcpCopyB').addEventListener('click', async function() { await copiarEnlaceProgreso(urlB, this); });
+      document.body.appendChild(modal);
+    }
+
+    async function copiarEnlaceProgreso(url, btn) {
       try {
         await navigator.clipboard.writeText(url);
-        showToast('✅ Enlace copiado al portapapeles','success');
+        btn.textContent = 'Enlace copiado';
+        showToast('Enlace copiado al portapapeles', 'success');
+        setTimeout(() => { const m = document.getElementById('modal-compartir-progreso'); if (m) m.remove(); }, 1200);
       } catch(e) {
         prompt('Copia este enlace para compartir con el cliente:', url);
       }
