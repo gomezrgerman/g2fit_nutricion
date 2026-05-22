@@ -173,8 +173,13 @@
           ? { titulo: 'El peso se mantiene estable', texto: `${nombre}, mantener el peso dentro de esos márgenes requiere consistencia y saber escuchar al cuerpo. Lo estás haciendo bien. Sigue con los mismos hábitos.` }
           : { titulo: 'Equilibrio controlado', texto: `${nombre}, una variación mínima respecto al inicio es exactamente lo que buscamos en un objetivo de mantenimiento. El plan está cumpliendo su función.` };
       }
+      if (difNum < -1.5) {
+        return v === 0
+          ? { titulo: 'Los resultados superan el objetivo', texto: `${nombre}, llevas ${Math.abs(difNum)} kg menos desde que empezaste. Aunque el plan inicial se orientaba a mantener, tu cuerpo ha respondido más allá de eso. Si quieres seguir en esta línea, Lydia puede ajustar el plan para que el progreso continúe.` }
+          : { titulo: 'El cuerpo ha ido más allá del objetivo', texto: `${nombre}, has bajado ${Math.abs(difNum)} kg desde el inicio, más de lo que marcaba el objetivo de mantenimiento. Si este resultado te sienta bien y quieres seguir en esa dirección, coméntaselo a Lydia para que el plan lo acompañe.` };
+      }
       return v === 0
-        ? { titulo: 'Pequeño ajuste en marcha', texto: `${nombre}, hay una pequeña oscilación respecto al objetivo de mantenimiento, pero eso es normal y reversible. Si quieres revisar algún aspecto del plan, Lydia puede ajustar lo que sea necesario.` }
+        ? { titulo: 'Pequeño ajuste en marcha', texto: `${nombre}, hay una pequeña oscilación hacia arriba respecto al objetivo de mantenimiento. No es un problema — es información para ajustar el plan si hace falta. Habla con Lydia si quieres revisarlo.` }
         : { titulo: 'El mantenimiento tiene sus márgenes', texto: `${nombre}, el peso nunca es una línea plana — tiene oscilaciones naturales. Lo importante es la tendencia a medio plazo. Si la oscilación persiste, podemos hacer pequeños ajustes en el plan.` };
     }
 
