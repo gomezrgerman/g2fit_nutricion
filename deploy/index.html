@@ -4,7 +4,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>G2FIT Nutrición — Gestión</title>
+  <title>G2FIT Nutrición — Panel de Gestión</title>
+  <meta name="robots" content="noindex, nofollow">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet">
@@ -1982,9 +1983,9 @@
     // CONFIG
     // ==========================================
     const SUPABASE_URL = 'https://blardvkldwwbhgdmsxhd.supabase.co';
-    // Anon key pública — siempre fija, NUNCA se sobreescribe con localStorage
-    // La service_role key estaba causando el error "Forbidden use of secret API key in browser"
-    const SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsYXJkdmtsZHd3YmhnZG1zeGhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMjMyMzIsImV4cCI6MjA4NzU5OTIzMn0.vZXMw7_M70-aWp8yTw022dZz2yQKZaL1aXuDyGm-xo8';
+    // Anon key pública (diseñada para usarse en el navegador)
+    const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsYXJkdmtsZHd3YmhnZG1zeGhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMjMyMzIsImV4cCI6MjA4NzU5OTIzMn0.vZXMw7_M70-aWp8yTw022dZz2yQKZaL1aXuDyGm-xo8';
+    let AUTH_TOKEN = ANON_KEY;
     let ANTHROPIC_KEY = localStorage.getItem('g2fit_anthropic_key') || '';
 
     // Limpiar cualquier service_role key antigua que pudiera estar guardada
@@ -1993,14 +1994,20 @@
     // ==========================================
     // AUTENTICACION
     // ==========================================
-    const ALLOWED_EMAILS = ['pruebagerman7@gmail.com', 'lydia.dietista.denia@gmail.com'];
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SERVICE_KEY);
+    const ALLOWED_EMAILS = ['lydia.dietista.denia@gmail.com'];
+    const supabaseClient = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+    supabaseClient.auth.onAuthStateChange((_event, session) => {
+      AUTH_TOKEN = session?.access_token || ANON_KEY;
+    });
 
     async function checkAuth() {
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (session && ALLOWED_EMAILS.includes(session.user.email.toLowerCase())) {
+        AUTH_TOKEN = session.access_token || ANON_KEY;
         showApp(session.user.email);
       } else {
+        AUTH_TOKEN = ANON_KEY;
         if (session) await supabaseClient.auth.signOut();
         showLogin();
       }
@@ -2066,11 +2073,21 @@
 
     function getHeaders() {
       return {
-        'apikey': SERVICE_KEY,
-        'Authorization': `Bearer ${SERVICE_KEY}`,
+        'apikey': ANON_KEY,
+        'Authorization': `Bearer ${AUTH_TOKEN}`,
         'Content-Type': 'application/json',
         'Prefer': 'return=representation'
       };
+    }
+
+    function escapeHtml(str) {
+      if (str == null) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
 
     function openConfig() {
@@ -2118,7 +2135,7 @@
     // STATS
     // ==========================================
     async function loadStats() {
-      if (!SERVICE_KEY) return;
+      if (!ANON_KEY) return;
       try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/recetas?select=categoria,activa`, { headers: getHeaders() });
         if (!res.ok) return;
@@ -2208,7 +2225,7 @@
 
     document.getElementById('recipe-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      if (!SERVICE_KEY) { showToast('⚠️ Error de configuración', 'error'); return; }
+      if (!ANON_KEY) { showToast('⚠️ Error de configuración', 'error'); return; }
 
       const btn = document.getElementById('submit-btn');
       btn.disabled = true;
@@ -2383,7 +2400,7 @@
     }
 
     async function importCSV() {
-      if (!SERVICE_KEY) { showToast('⚠️ Error de configuración', 'error'); return; }
+      if (!ANON_KEY) { showToast('⚠️ Error de configuración', 'error'); return; }
       const valid = parsedCSV.filter(r => !r._error);
       if (!valid.length) { showToast('No hay recetas válidas para importar', 'error'); return; }
 
@@ -2427,7 +2444,7 @@
     let allRecipes = [];
 
     async function loadRecipes() {
-      if (!SERVICE_KEY) return;
+      if (!ANON_KEY) return;
       document.getElementById('recipes-tbody').innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--muted)">Cargando...</td></tr>';
       try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/recetas?select=*&order=created_at.desc`, { headers: getHeaders() });
@@ -2512,7 +2529,7 @@
     // INIT
     // ==========================================
     checkConfig();
-    if (SERVICE_KEY) { loadStats(); }
+    if (ANON_KEY) { loadStats(); }
 
     // openConfig ya definida correctamente arriba
   </script>
@@ -2560,17 +2577,17 @@
         return;
       }
       tbody.innerHTML = list.map(c => {
-        const nombre = `${c.nombre||''} ${c.apellidos||''}`.trim() || '—';
-        const obj = OBJETIVO_LABEL[c.objetivo] || c.objetivo || '—';
+        const nombre = escapeHtml(`${c.nombre||''} ${c.apellidos||''}`.trim() || '—');
+        const obj = escapeHtml(OBJETIVO_LABEL[c.objetivo] || c.objetivo || '—');
         const fecha = c.created_at ? new Date(c.created_at).toLocaleDateString('es-ES') : '—';
         return `<tr>
           <td style="font-weight:500">${nombre}</td>
-          <td style="font-size:13px;color:var(--muted)">${c.email||'—'}</td>
+          <td style="font-size:13px;color:var(--muted)">${escapeHtml(c.email||'—')}</td>
           <td style="font-size:13px">${obj}</td>
-          <td style="font-size:13px">${c.peso_actual ? c.peso_actual+' kg' : '—'}</td>
-          <td style="font-size:13px">${c.imc ? c.imc+' ('+( c.imc_categoria||'')+')'  : '—'}</td>
+          <td style="font-size:13px">${c.peso_actual ? escapeHtml(c.peso_actual+' kg') : '—'}</td>
+          <td style="font-size:13px">${c.imc ? escapeHtml(c.imc+' ('+(c.imc_categoria||'')+')') : '—'}</td>
           <td style="font-size:12px;color:var(--muted)">${fecha}</td>
-          <td style="text-align:center"><button class="btn btn-secondary" onclick="openClienteModal('${c.id}')" style="padding:6px 12px;font-size:12px">👁 Ver ficha</button></td>
+          <td style="text-align:center"><button class="btn btn-secondary" onclick="openClienteModal('${escapeHtml(c.id)}')" style="padding:6px 12px;font-size:12px">👁 Ver ficha</button></td>
         </tr>`;
       }).join('');
     }
@@ -3105,7 +3122,7 @@ ${trimmed}`;
     }
 
     async function importDocRecipes() {
-      if (!SERVICE_KEY) { showToast('⚠️ Error de configuración', 'error'); return; }
+      if (!ANON_KEY) { showToast('⚠️ Error de configuración', 'error'); return; }
 
       const selected = docExtractedRecipes.filter((_, i) => document.getElementById(`rcheck-${i}`)?.checked);
       if (!selected.length) { showToast('Selecciona al menos una receta', 'error'); return; }

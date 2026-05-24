@@ -197,16 +197,16 @@ CREATE POLICY "Service role full access logs" ON public.logs_generacion
 CREATE POLICY "Service role full access recetas" ON public.recetas
   USING (auth.role() = 'service_role');
 
--- Acceso completo desde browser con anon key (gestor de recetas es herramienta privada)
--- La anon key es segura de usar en el browser, no expone credenciales admin
-CREATE POLICY "Anon full access recetas insert" ON public.recetas
-  FOR INSERT WITH CHECK (true);
+-- Escritura de recetas solo para usuarios autenticados (role = 'authenticated')
+-- El gestor usa el JWT del usuario logueado vía Supabase Auth, no la anon key
+CREATE POLICY "Authenticated users insert recetas" ON public.recetas
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
-CREATE POLICY "Anon full access recetas update" ON public.recetas
-  FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated users update recetas" ON public.recetas
+  FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 
-CREATE POLICY "Anon full access recetas delete" ON public.recetas
-  FOR DELETE USING (true);
+CREATE POLICY "Authenticated users delete recetas" ON public.recetas
+  FOR DELETE USING (auth.role() = 'authenticated');
 
 -- ============================================================
 -- DATOS INICIALES: Recetas de ejemplo

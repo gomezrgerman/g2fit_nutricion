@@ -3,155 +3,199 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pago completado — G2Fit Nutrición</title>
+  <title>Pago completado — G2FIT Nutrición</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
+      font-family: 'Inter', sans-serif;
+      background: #0F172A;
+      color: #F1F5F9;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 24px;
+      background-image: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(251,95,171,0.1) 0%, transparent 70%);
     }
     .card {
-      background: white;
-      border-radius: 16px;
-      max-width: 520px;
+      background: #1E293B;
+      border: 1px solid rgba(251,95,171,0.2);
+      border-radius: 24px;
+      max-width: 500px;
       width: 100%;
       overflow: hidden;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
     }
     .header {
-      background: linear-gradient(135deg, #1B5E20, #43A047);
-      padding: 36px 32px;
+      background: linear-gradient(135deg, rgba(251,95,171,0.15) 0%, rgba(214,60,142,0.08) 100%);
+      border-bottom: 1px solid rgba(251,95,171,0.2);
+      padding: 36px 32px 28px;
       text-align: center;
     }
-    .header h1 {
-      color: white;
-      font-size: 22px;
-      font-weight: bold;
-      letter-spacing: 1px;
-    }
-    .header p {
-      color: #C8E6C9;
-      margin-top: 6px;
-      font-size: 14px;
-    }
-    .check {
+    .check-circle {
       width: 72px;
       height: 72px;
-      background: #4CAF50;
+      background: linear-gradient(135deg, #FB5FAB, #d63c8e);
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 28px auto 0;
-      border: 4px solid white;
+      margin: 0 auto 20px;
+      box-shadow: 0 0 32px rgba(251,95,171,0.4);
     }
-    .check svg {
+    .check-circle svg {
       width: 36px;
       height: 36px;
       fill: none;
-      stroke: white;
-      stroke-width: 3;
+      stroke: #fff;
+      stroke-width: 2.5;
       stroke-linecap: round;
       stroke-linejoin: round;
     }
+    .header h1 {
+      font-size: 22px;
+      font-weight: 800;
+      color: #F1F5F9;
+      margin-bottom: 6px;
+      letter-spacing: -0.5px;
+    }
+    .header p {
+      color: #64748B;
+      font-size: 14px;
+    }
     .body {
-      padding: 36px 32px;
-      text-align: center;
+      padding: 32px;
     }
     .body h2 {
-      color: #1B5E20;
-      font-size: 22px;
-      margin-bottom: 16px;
-    }
-    .body p {
-      color: #555;
-      font-size: 15px;
-      line-height: 1.7;
+      font-size: 20px;
+      font-weight: 700;
+      color: #FB5FAB;
       margin-bottom: 12px;
     }
+    .body > p {
+      color: #94a3b8;
+      font-size: 15px;
+      line-height: 1.7;
+      margin-bottom: 24px;
+    }
     .highlight {
-      background: #E8F5E9;
-      border-left: 4px solid #4CAF50;
-      border-radius: 0 8px 8px 0;
-      padding: 14px 18px;
-      text-align: left;
-      margin: 20px 0;
+      background: rgba(251,95,171,0.08);
+      border: 1px solid rgba(251,95,171,0.25);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
     }
     .highlight p {
-      color: #2E7D32;
+      color: #cbd5e1;
       font-size: 14px;
-      margin: 0;
+      line-height: 1.6;
     }
     .steps {
-      text-align: left;
-      margin: 20px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 28px;
     }
     .step {
       display: flex;
       align-items: flex-start;
-      gap: 12px;
-      margin-bottom: 12px;
+      gap: 14px;
     }
     .step-num {
-      background: #4CAF50;
-      color: white;
+      background: linear-gradient(135deg, #FB5FAB, #d63c8e);
+      color: #fff;
       border-radius: 50%;
-      width: 24px;
-      height: 24px;
-      min-width: 24px;
+      width: 26px;
+      height: 26px;
+      min-width: 26px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 12px;
-      font-weight: bold;
+      font-weight: 700;
+      margin-top: 1px;
     }
-    .step p { color: #444; font-size: 14px; margin: 0; line-height: 1.5; }
-    .footer {
-      background: #1B5E20;
-      padding: 18px;
+    .step p {
+      color: #94a3b8;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    .step strong {
+      color: #F1F5F9;
+      font-weight: 600;
+    }
+    .contact {
+      border-top: 1px solid rgba(255,255,255,0.07);
+      padding-top: 20px;
       text-align: center;
-      color: #A5D6A7;
+      color: #475569;
+      font-size: 13px;
+    }
+    .contact a {
+      color: #FB5FAB;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .footer {
+      background: rgba(0,0,0,0.2);
+      border-top: 1px solid rgba(255,255,255,0.05);
+      padding: 16px 32px;
+      text-align: center;
+      color: #475569;
       font-size: 12px;
+    }
+    .footer strong {
+      color: #FB5FAB;
+    }
+    @media (max-width: 480px) {
+      .header { padding: 28px 20px 22px; }
+      .body { padding: 24px 20px; }
+      .footer { padding: 14px 20px; }
     }
   </style>
 </head>
 <body>
   <div class="card">
     <div class="header">
-      <h1>G2Fit Nutrición</h1>
-      <p>Tu plan nutricional personalizado</p>
-      <div class="check">
+      <div class="check-circle">
         <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
       </div>
+      <h1>G2FIT Nutrición</h1>
+      <p>Tu plan nutricional personalizado</p>
     </div>
+
     <div class="body">
       <h2>¡Pago completado!</h2>
-      <p>Gracias por confiar en G2Fit. Hemos recibido tu pago correctamente.</p>
+      <p>Gracias por confiar en G2FIT. Hemos recibido tu pago correctamente y ya estamos trabajando en tu plan.</p>
+
       <div class="highlight">
-        <p>Nuestro equipo está revisando tu formulario y generando tu plan nutricional personalizado. Lo recibirás en tu correo electrónico lo antes posible.</p>
+        <p>Nuestro equipo está revisando tus datos y generando tu plan nutricional 100% personalizado. Lo recibirás directamente en tu correo electrónico.</p>
       </div>
+
       <div class="steps">
         <div class="step">
           <div class="step-num">1</div>
-          <p><strong>Revisamos tu formulario</strong> y los datos que nos proporcionaste.</p>
+          <p><strong>Revisamos tu formulario</strong> y todos los datos que nos has proporcionado.</p>
         </div>
         <div class="step">
           <div class="step-num">2</div>
-          <p><strong>Generamos tu plan</strong> nutricional 100% personalizado.</p>
+          <p><strong>Generamos tu plan</strong> nutricional adaptado a tu objetivo, preferencias y estilo de vida.</p>
         </div>
         <div class="step">
           <div class="step-num">3</div>
           <p><strong>Te lo enviamos por email</strong> en el menor tiempo posible.</p>
         </div>
       </div>
-      <p style="font-size:13px; color:#999;">Si tienes alguna duda, escríbenos o llámanos al <strong style="color:#2E7D32;">608 899 943</strong></p>
+
+      <div class="contact">
+        ¿Tienes alguna duda? Escríbenos o llámanos al
+        <a href="tel:+34608899943">608 899 943</a>
+      </div>
     </div>
-    <div class="footer">G2Fit Nutrición — Tu bienestar, nuestra misión</div>
+
+    <div class="footer">G2FIT Nutrición — <strong>Tu bienestar, nuestra misión</strong></div>
   </div>
 </body>
 </html>

@@ -84,6 +84,11 @@
     const OBJETIVO_LABEL = { perder_peso:'Perder peso', ganar_masa:'Ganar masa muscular', mantener:'Mantener peso', definicion:'Definición' };
     const h = { 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' };
 
+    function escapeHtml(str) {
+      if (str == null) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
     async function init() {
       const token = new URLSearchParams(window.location.search).get('c');
       if (!token) { showError('Enlace no válido'); return; }
@@ -101,7 +106,15 @@
     }
 
     function showError(msg) {
-      document.getElementById('app').innerHTML = `<div class="empty"><div class="empty-icon">❌</div><p>${msg}</p></div>`;
+      const app = document.getElementById('app');
+      app.innerHTML = '';
+      const div = document.createElement('div');
+      div.className = 'empty';
+      div.innerHTML = '<div class="empty-icon">❌</div>';
+      const p = document.createElement('p');
+      p.textContent = msg;
+      div.appendChild(p);
+      app.appendChild(div);
     }
 
     function generarMensaje(c, seguimiento, difPeso, primera, ultima, variant = 0) {
@@ -209,9 +222,9 @@
         <div class="hero">
           <div class="hero-avatar">💪</div>
           <div class="hero-info">
-            <h2>${nombre || 'Cliente'}</h2>
-            <p>Objetivo: <span class="badge-obj">${OBJETIVO_LABEL[c.objetivo]||c.objetivo||'—'}</span></p>
-            ${c.tiempo_objetivo ? `<p style="margin-top:4px;font-size:13px;color:var(--muted)">Tiempo objetivo: ${c.tiempo_objetivo}</p>` : ''}
+            <h2>${escapeHtml(nombre || 'Cliente')}</h2>
+            <p>Objetivo: <span class="badge-obj">${escapeHtml(OBJETIVO_LABEL[c.objetivo]||c.objetivo||'—')}</span></p>
+            ${c.tiempo_objetivo ? `<p style="margin-top:4px;font-size:13px;color:var(--muted)">Tiempo objetivo: ${escapeHtml(c.tiempo_objetivo)}</p>` : ''}
           </div>
         </div>
 

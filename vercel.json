@@ -1,6 +1,9 @@
 {
   "rewrites": [
     { "source": "/progreso", "destination": "/deploy/progreso.html" },
+    { "source": "/privacidad", "destination": "/deploy/privacidad.html" },
+    { "source": "/terminos", "destination": "/deploy/terminos.html" },
+    { "source": "/gracias", "destination": "/gracias-pago.html" },
     { "source": "/", "destination": "/gestor_recetas.html" }
   ]
 }

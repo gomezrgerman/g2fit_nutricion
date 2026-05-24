@@ -4,7 +4,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>G2FIT Nutrición — Gestión</title>
+  <title>G2FIT Nutrición — Panel de Gestión</title>
+  <meta name="robots" content="noindex, nofollow">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet">
@@ -1418,15 +1419,9 @@
   <div class="modal-overlay" id="config-modal" style="display:none">
     <div class="modal">
       <h3>⚙️ Configuración</h3>
-      <p>La conexión con Supabase ya está integrada. Aquí solo necesitas configurar tu <strong>Anthropic API
-          Key</strong> para activar la importación de recetas desde PDF o Word con IA.</p>
-      <div class="field">
-        <label>Anthropic API Key (para importar PDF/Word con IA)</label>
-        <input id="cfg-anthropic" type="password" placeholder="sk-ant-api03-...">
-      </div>
+      <p>La conexión con Supabase está integrada y la IA para importar PDF/Word funciona a través del servidor. No es necesario configurar nada aquí.</p>
       <div class="modal-footer">
-        <button class="btn btn-ghost" onclick="closeConfig()">Cancelar</button>
-        <button class="btn btn-primary" onclick="saveConfig()">💾 Guardar</button>
+        <button class="btn btn-primary" onclick="closeConfig()">Cerrar</button>
       </div>
     </div>
   </div>
@@ -1461,15 +1456,6 @@
 
   <!-- MAIN -->
   <div class="container">
-
-    <!-- CONFIG BANNER -->
-    <div id="config-banner">
-      <span class="icon">⚠️</span>
-      <div>Configura tu <strong>Anthropic API Key</strong> para importar recetas desde PDF/Word con IA. <button
-          onclick="openConfig()"
-          style="background:none;border:none;color:var(--yellow);cursor:pointer;font-weight:600;font-family:inherit">Configurar
-          ahora →</button></div>
-    </div>
 
     <!-- STATS -->
     <div class="stats-bar">
@@ -2238,25 +2224,32 @@
     // CONFIG
     // ==========================================
     const SUPABASE_URL = 'https://blardvkldwwbhgdmsxhd.supabase.co';
-    // Anon key pública — siempre fija, NUNCA se sobreescribe con localStorage
-    // La service_role key estaba causando el error "Forbidden use of secret API key in browser"
-    const SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsYXJkdmtsZHd3YmhnZG1zeGhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMjMyMzIsImV4cCI6MjA4NzU5OTIzMn0.vZXMw7_M70-aWp8yTw022dZz2yQKZaL1aXuDyGm-xo8';
-    let ANTHROPIC_KEY = localStorage.getItem('g2fit_anthropic_key') || '';
-
-    // Limpiar cualquier service_role key antigua que pudiera estar guardada
+    // Anon key pública (diseñada para usarse en el navegador, no expone credenciales admin)
+    const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsYXJkdmtsZHd3YmhnZG1zeGhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMjMyMzIsImV4cCI6MjA4NzU5OTIzMn0.vZXMw7_M70-aWp8yTw022dZz2yQKZaL1aXuDyGm-xo8';
+    // AUTH_TOKEN se actualiza con el JWT del usuario autenticado para que RLS funcione correctamente
+    let AUTH_TOKEN = ANON_KEY;
+    // Limpiar keys antiguas guardadas en localStorage
     localStorage.removeItem('g2fit_service_key');
+    localStorage.removeItem('g2fit_anthropic_key');
 
     // ==========================================
     // AUTENTICACION
     // ==========================================
-    const ALLOWED_EMAILS = ['pruebagerman7@gmail.com', 'lydia.dietista.denia@gmail.com'];
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SERVICE_KEY);
+    const ALLOWED_EMAILS = ['lydia.dietista.denia@gmail.com'];
+    const supabaseClient = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+    // Mantener AUTH_TOKEN sincronizado con la sesión activa
+    supabaseClient.auth.onAuthStateChange((_event, session) => {
+      AUTH_TOKEN = session?.access_token || ANON_KEY;
+    });
 
     async function checkAuth() {
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (session && ALLOWED_EMAILS.includes(session.user.email.toLowerCase())) {
+        AUTH_TOKEN = session.access_token || ANON_KEY;
         showApp(session.user.email);
       } else {
+        AUTH_TOKEN = ANON_KEY;
         if (session) await supabaseClient.auth.signOut();
         showLogin();
       }
@@ -2322,15 +2315,25 @@
 
     function getHeaders() {
       return {
-        'apikey': SERVICE_KEY,
-        'Authorization': `Bearer ${SERVICE_KEY}`,
+        'apikey': ANON_KEY,
+        'Authorization': `Bearer ${AUTH_TOKEN}`,
         'Content-Type': 'application/json',
         'Prefer': 'return=representation'
       };
     }
 
+    // Utilidad: escapar HTML para prevenir XSS al insertar datos en innerHTML
+    function escapeHtml(str) {
+      if (str == null) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
     function openConfig() {
-      document.getElementById('cfg-anthropic').value = ANTHROPIC_KEY || '';
       const m = document.getElementById('config-modal');
       m.style.display = 'flex';
       m.style.opacity = '1';
@@ -2342,23 +2345,6 @@
       m.style.pointerEvents = 'none';
       setTimeout(() => { m.style.display = 'none'; }, 200);
     }
-    function saveConfig() {
-      const ak = document.getElementById('cfg-anthropic').value.trim();
-      if (ak) { ANTHROPIC_KEY = ak; localStorage.setItem('g2fit_anthropic_key', ak); }
-      closeConfig();
-      showToast('✅ Anthropic API Key guardada', 'success');
-      checkConfig();
-    }
-
-    function checkConfig() {
-      const banner = document.getElementById('config-banner');
-      if (ANTHROPIC_KEY) {
-        banner.classList.add('hidden');
-      } else {
-        banner.classList.remove('hidden');
-      }
-    }
-
     // ==========================================
     // TABS
     // ==========================================
@@ -2378,7 +2364,7 @@
     // STATS
     // ==========================================
     async function loadStats() {
-      if (!SERVICE_KEY) return;
+      if (!ANON_KEY) return;
       try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/recetas?select=categoria,activa`, { headers: getHeaders() });
         if (!res.ok) return;
@@ -2387,7 +2373,7 @@
         document.getElementById('stat-desayuno').textContent = data.filter(r => r.categoria === 'desayuno').length;
         document.getElementById('stat-principales').textContent = data.filter(r => r.categoria === 'comida' || r.categoria === 'cena').length;
         document.getElementById('stat-snacks').textContent = data.filter(r => r.categoria === 'snack' || r.categoria === 'merienda').length;
-      } catch (e) { }
+      } catch (e) { console.error('loadStats:', e); }
     }
 
     // ==========================================
@@ -2468,7 +2454,7 @@
 
     document.getElementById('recipe-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      if (!SERVICE_KEY) { showToast('⚠️ Error de configuración', 'error'); return; }
+      if (!ANON_KEY) { showToast('⚠️ Error de configuración', 'error'); return; }
 
       const btn = document.getElementById('submit-btn');
       btn.disabled = true;
@@ -2643,7 +2629,7 @@
     }
 
     async function importCSV() {
-      if (!SERVICE_KEY) { showToast('⚠️ Error de configuración', 'error'); return; }
+      if (!ANON_KEY) { showToast('⚠️ Error de configuración', 'error'); return; }
       const valid = parsedCSV.filter(r => !r._error);
       if (!valid.length) { showToast('No hay recetas válidas para importar', 'error'); return; }
 
@@ -2687,7 +2673,7 @@
     let allRecipes = [];
 
     async function loadRecipes() {
-      if (!SERVICE_KEY) return;
+      if (!ANON_KEY) return;
       document.getElementById('recipes-tbody').innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--muted)">Cargando...</td></tr>';
       try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/recetas?select=*&order=created_at.desc`, { headers: getHeaders() });
@@ -2771,10 +2757,7 @@
     // ==========================================
     // INIT
     // ==========================================
-    checkConfig();
-    if (SERVICE_KEY) { loadStats(); }
-
-    // openConfig ya definida correctamente arriba
+    if (ANON_KEY) { loadStats(); }
   </script>
 
   <!-- CLIENTES JS -->
@@ -2798,7 +2781,8 @@
         document.getElementById('c-badge').textContent = allClientes.length;
         filterClientes();
       } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">❌</div><p>${e.message}</p></div></td></tr>`;
+        console.error('loadClientes:', e);
+        tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">❌</div><p>${escapeHtml(e.message)}</p></div></td></tr>`;
       }
     }
 
@@ -2820,17 +2804,17 @@
         return;
       }
       tbody.innerHTML = list.map(c => {
-        const nombre = `${c.nombre||''} ${c.apellidos||''}`.trim() || '—';
-        const obj = OBJETIVO_LABEL[c.objetivo] || c.objetivo || '—';
+        const nombre = escapeHtml(`${c.nombre||''} ${c.apellidos||''}`.trim() || '—');
+        const obj = escapeHtml(OBJETIVO_LABEL[c.objetivo] || c.objetivo || '—');
         const fecha = c.created_at ? new Date(c.created_at).toLocaleDateString('es-ES') : '—';
         return `<tr>
           <td style="font-weight:500">${nombre}</td>
-          <td style="font-size:13px;color:var(--muted)">${c.email||'—'}</td>
+          <td style="font-size:13px;color:var(--muted)">${escapeHtml(c.email||'—')}</td>
           <td style="font-size:13px">${obj}</td>
-          <td style="font-size:13px">${c.peso_actual ? c.peso_actual+' kg' : '—'}</td>
-          <td style="font-size:13px">${c.imc ? c.imc+' ('+( c.imc_categoria||'')+')'  : '—'}</td>
+          <td style="font-size:13px">${c.peso_actual ? escapeHtml(c.peso_actual+' kg') : '—'}</td>
+          <td style="font-size:13px">${c.imc ? escapeHtml(c.imc+' ('+(c.imc_categoria||'')+')') : '—'}</td>
           <td style="font-size:12px;color:var(--muted)">${fecha}</td>
-          <td style="text-align:center"><button class="btn btn-secondary" onclick="openClienteModal('${c.id}')" style="padding:6px 12px;font-size:12px">👁 Ver ficha</button></td>
+          <td style="text-align:center"><button class="btn btn-secondary" onclick="openClienteModal('${escapeHtml(c.id)}')" style="padding:6px 12px;font-size:12px">👁 Ver ficha</button></td>
         </tr>`;
       }).join('');
     }
@@ -2852,7 +2836,7 @@
         ['Comidas seleccionadas', (c.comidas_seleccionadas||[]).join(', ')||'—'],
         ['Alergias', (c.alergias||[]).join(', ')||'Ninguna'],
         ['Intolerancias', (c.intolerancias||[]).join(', ')||'Ninguna'],
-      ].map(([k,v]) => `<div><span style="font-size:12px;color:var(--muted)">${k}</span><div style="font-weight:500;margin-top:2px;font-size:13px">${v}</div></div>`).join('');
+      ].map(([k,v]) => `<div><span style="font-size:12px;color:var(--muted)">${escapeHtml(k)}</span><div style="font-weight:500;margin-top:2px;font-size:13px">${escapeHtml(String(v))}</div></div>`).join('');
 
       document.getElementById('cm-medidas').innerHTML = [
         ['⚖️ Peso inicial', c.peso_actual ? c.peso_actual+' kg' : '—'],
@@ -2863,8 +2847,8 @@
         ['📐 Cont. inf.', c.contorno_abdominal_3 ? c.contorno_abdominal_3+' cm' : '—'],
         ['📊 Variación', (c.contorno_abdominal_1 && c.contorno_abdominal_3) ? Math.abs(c.contorno_abdominal_3 - c.contorno_abdominal_1)+' cm' : '—'],
       ].map(([k,v]) => `<div style="background:rgba(251,95,171,0.08);border-radius:8px;padding:10px">
-        <div style="font-size:18px;font-weight:700;color:var(--pink);white-space:pre-line">${v}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:2px">${k}</div></div>`).join('');
+        <div style="font-size:18px;font-weight:700;color:var(--pink);white-space:pre-line">${escapeHtml(String(v))}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">${escapeHtml(k)}</div></div>`).join('');
 
       document.getElementById('cm-preferencias').innerHTML = [
         ['Dieta anterior', c.dieta_anterior||'—'],
@@ -2881,7 +2865,7 @@
         ['Frutos secos', c.frutos_secos_preferidos||'—'],
         ['Bebidas vegetales', (c.bebidas_vegetales_preferidas||[]).join(', ')||'—'],
         ['Datos de interés', c.datos_interes||'—'],
-      ].map(([k,v]) => `<div><span style="font-size:12px;color:var(--muted)">${k}</span><div style="font-size:13px;margin-top:2px">${v}</div></div>`).join('');
+      ].map(([k,v]) => `<div><span style="font-size:12px;color:var(--muted)">${escapeHtml(k)}</span><div style="font-size:13px;margin-top:2px">${escapeHtml(String(v))}</div></div>`).join('');
 
       document.getElementById('med-fecha').value = new Date().toISOString().split('T')[0];
       ['med-peso','med-c1','med-c2','med-c3','med-notas'].forEach(id => document.getElementById(id).value = '');
@@ -2974,7 +2958,8 @@
         renderSeguimientoTable();
         renderCharts();
       } catch (e) {
-        document.getElementById('seguimiento-tbody').innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--red)">Error: ${e.message}</td></tr>`;
+        console.error('loadSeguimiento:', e);
+        document.getElementById('seguimiento-tbody').innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--red)">Error: ${escapeHtml(e.message)}</td></tr>`;
       }
     }
 
@@ -3000,8 +2985,8 @@
           <td style="font-size:13px;color:var(--muted)">${m.contorno_abdominal_1 ? m.contorno_abdominal_1+' cm' : '—'}</td>
           <td style="font-size:13px;color:var(--muted)">${m.contorno_abdominal_2 ? m.contorno_abdominal_2+' cm' : '—'}</td>
           <td style="font-size:13px;color:var(--muted)">${m.contorno_abdominal_3 ? m.contorno_abdominal_3+' cm' : '—'}</td>
-          <td style="font-size:12px;color:var(--muted)">${m.notas||'—'}</td>
-          <td><button class="btn btn-ghost" onclick="deleteMedicion('${m.id}')" style="font-size:12px;padding:3px 8px">🗑️</button></td>
+          <td style="font-size:12px;color:var(--muted)">${escapeHtml(m.notas||'—')}</td>
+          <td><button class="btn btn-ghost" onclick="deleteMedicion('${escapeHtml(m.id)}')" aria-label="Eliminar medición" style="font-size:12px;padding:3px 8px">🗑️</button></td>
         </tr>`;
       }).join('');
     }
@@ -3088,7 +3073,10 @@
             <button class="btn btn-secondary" onclick="closeClienteModal();switchTab('dietas',document.getElementById('tab-dietas'));setTimeout(()=>{ if(allDietas.length===0){loadDietas().then(()=>openDietaModal('${d.id}'))}else{openDietaModal('${d.id}')}},400)" style="font-size:12px;padding:6px 12px">Ver →</button>
           </div>`;
         }).join('');
-      } catch(e) { container.innerHTML = `<div style="text-align:center;padding:20px;color:var(--red)">${e.message}</div>`; }
+      } catch(e) {
+        console.error('loadClienteDietas:', e);
+        container.innerHTML = `<div style="text-align:center;padding:20px;color:var(--red)">${escapeHtml(e.message)}</div>`;
+      }
     }
 
     async function compartirProgreso() {
@@ -3106,8 +3094,7 @@
           if (idx !== -1) allClientes[idx].link_token = token;
         } catch(e) { showToast('Error generando enlace: '+e.message,'error'); return; }
       }
-      const origin = window.location.origin || 'https://tu-dominio.com';
-      const baseUrl = `${origin}/progreso?c=${token}`;
+      const baseUrl = `${window.location.origin}/progreso?c=${token}`;
 
       const primera = seguimientoData.length ? seguimientoData[0] : null;
       const ultima = seguimientoData.length ? seguimientoData[seguimientoData.length - 1] : null;
@@ -3169,8 +3156,8 @@
         ? { titulo: 'El peso se mantiene estable', texto: `${n}, mantener el peso dentro de esos márgenes requiere consistencia — y lo estás consiguiendo. Sigue con los mismos hábitos, porque están funcionando.` }
         : { titulo: 'Equilibrio controlado', texto: `${n}, una variación mínima respecto al inicio es exactamente lo que buscaba con el plan. Estás siguiendo el camino correcto.` };
       if (d < -1.5) return v === 0
-        ? { titulo: 'Los resultados superan el objetivo', texto: `${n}, llevas ${Math.abs(d)} kg menos desde que empezaste. Aunque orienté el plan inicial a mantener, tu cuerpo ha respondido más allá de eso — y me parece muy positivo. Si quieres seguir en esta línea, puedo ajustar el plan para que el progreso continúe.` }
-        : { titulo: 'El cuerpo ha ido más allá del objetivo', texto: `${n}, has bajado ${Math.abs(d)} kg desde el inicio, más de lo que marcaba el objetivo inicial. Si este resultado te sienta bien y quieres seguir en esa dirección, coméntamelo y ajusto el plan para acompañar ese camino.` };
+        ? { titulo: 'El peso ha bajado del objetivo', texto: `${n}, llevas ${Math.abs(d)} kg por debajo del peso de mantenimiento desde que empezaste. Según cómo te encuentres, esto puede ser positivo o puede que necesitemos revisar el plan juntas. Escríbeme cuando puedas.` }
+        : { titulo: 'Bajada por debajo del objetivo', texto: `${n}, tu peso ha caído ${Math.abs(d)} kg por debajo del objetivo de mantenimiento. Si te sientes bien y es intencionado, perfecto. Si no es lo que buscas, dímelo y ajustamos el plan.` };
       return v === 0
         ? { titulo: 'Pequeño ajuste en marcha', texto: `${n}, hay una pequeña oscilación hacia arriba respecto al objetivo. No es un problema — es información para que pueda ajustar el plan si hace falta. Escríbeme si quieres revisarlo.` }
         : { titulo: 'El mantenimiento tiene sus márgenes', texto: `${n}, el peso nunca es una línea plana — tiene oscilaciones naturales, lo sé bien. Lo importante es la tendencia a medio plazo. Si la oscilación persiste, podemos hacer pequeños ajustes.` };
@@ -3254,11 +3241,6 @@
     async function handleDocFiles(fileList) {
       const files = Array.from(fileList || []);
       if (!files.length) return;
-
-      if (!ANTHROPIC_KEY) {
-        showToast('⚠️ Configura tu Anthropic API Key en ⚙️ Configuración', 'error');
-        openConfig(); return;
-      }
 
       resetDocs();
       document.getElementById('doc-queue').style.display = 'block';
@@ -3345,64 +3327,19 @@
     }
 
     async function extractRecipesWithClaude(text, filename) {
-      // Reducir texto para evitar respuestas truncadas/malformadas
-      const trimmed = text.slice(0, 8000).replace(/`/g, "'");
-
-      const prompt = `Eres un dietista-nutricionista experto con amplios conocimientos de la composición nutricional de los alimentos. Analiza el texto del archivo "${filename}".
-
-TU TAREA:
-1. Detecta todas las recetas o platos presentes en el texto
-2. Para cada receta, extrae los ingredientes CON SUS CANTIDADES EXACTAS tal como aparecen en el PDF (ej: "200g pechuga de pollo", "1 huevo L", "50ml aceite de oliva")
-3. Para cada ingrediente, indica "gramos" con el PESO NETO EN GRAMOS (número decimal):
-   - "200g pechuga" → gramos: 200
-   - "1 huevo L (70g)" → gramos: 70
-   - "1 taza arroz (180ml)" → gramos: 180 (usa equivalencia estándar)
-   - "1 cda aceite" → gramos: 14
-   - Si la cantidad es un líquido en ml, usa 1ml≈1g como aproximación
-   - Si no hay cantidad explícita, estima una ración típica
-4. CALCULA los valores nutricionales SUMANDO los aportes de CADA ingrediente según su cantidad:
-   - Usa tus valores nutricionales por 100g para cada alimento
-   - Multiplica por la cantidad real indicada
-   - Suma todos los ingredientes para obtener el total de la receta
-   - Divide entre las porciones si se especifican
-
-EJEMPLOS de cálculo:
-- 200g pechuga de pollo (120kcal/100g) = 240kcal, 44g prot, 0g carb, 3g grasa
-- 150g arroz cocido (130kcal/100g) = 195kcal, 2.5g prot, 44g carb, 0.5g grasa
-- Total del plato = suma de todos los ingredientes
-
-NUNCA dejes calorias, proteinas_g, carbohidratos_g o grasas_g en 0. Si hay ingrediente sin cantidad, estima una cantidad típica.
-
-REGLAS JSON (obligatorio para que el resultado sea válido):
-- Devuelve SOLO un array JSON, sin markdown ni texto adicional
-- Strings en UNA SOLA LÍNEA: usa \\n para separar pasos de preparación, no saltos reales
-- Números siempre como número (no string), nunca null
-- Si no hay recetas en el texto: []
-
-Formato exacto (un objeto por receta):
-{"nombre":"Nombre del plato","categoria":"desayuno|comida|cena|snack|merienda","calorias":420,"proteinas_g":35,"carbohidratos_g":45,"grasas_g":8,"fibra_g":4,"azucar_g":2,"sodio_mg":380,"ingredientes":[{"nombre":"Pechuga de pollo","cantidad":"200g","gramos":200},{"nombre":"Arroz","cantidad":"80g seco","gramos":80}],"preparacion":"Paso 1\\nPaso 2\\nPaso 3","tiempo_prep_min":25,"dificultad":"facil|media|dificil","porciones":1,"alergenos":[],"restricciones":[],"tags":[]}
-
-TEXTO DEL PDF:
-${trimmed}`;
-
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/claude-proxy`, {
         method: 'POST',
         headers: {
-          'x-api-key': ANTHROPIC_KEY,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
-          'content-type': 'application/json'
+          'Authorization': `Bearer ${AUTH_TOKEN}`,
+          'apikey': ANON_KEY,
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5',
-          max_tokens: 6000,
-          messages: [{ role: 'user', content: prompt }]
-        })
+        body: JSON.stringify({ text, filename })
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error?.message || `HTTP ${res.status}`);
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${res.status}`);
       }
 
       const data = await res.json();
@@ -3526,7 +3463,7 @@ ${trimmed}`;
     }
 
     async function importDocRecipes() {
-      if (!SERVICE_KEY) { showToast('⚠️ Error de configuración', 'error'); return; }
+      if (!ANON_KEY) { showToast('⚠️ Error de configuración', 'error'); return; }
 
       const selected = docExtractedRecipes.filter((_, i) => document.getElementById(`rcheck-${i}`)?.checked);
       if (!selected.length) { showToast('Selecciona al menos una receta', 'error'); return; }
@@ -3660,7 +3597,8 @@ ${trimmed}`;
         updateDietasStats();
         filterDietas();
       } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">❌</div><p>Error: ${e.message}</p></div></td></tr>`;
+        console.error('loadDietas:', e);
+        tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">❌</div><p>Error: ${escapeHtml(e.message)}</p></div></td></tr>`;
       }
     }
 
@@ -3692,13 +3630,13 @@ ${trimmed}`;
         return;
       }
       tbody.innerHTML = list.map(d => {
-        const nombre = d.clientes?.nombre || '—';
-        const email = d.clientes?.email || '—';
+        const nombre = escapeHtml(d.clientes?.nombre || '—');
+        const email = escapeHtml(d.clientes?.email || '—');
         const fecha = d.created_at ? new Date(d.created_at).toLocaleDateString('es-ES') : '—';
-        const obj = OBJETIVO_LABEL[d.objetivo] || d.objetivo || '—';
-        const cal = d.calorias_objetivo ? `${d.calorias_objetivo} kcal` : '—';
+        const obj = escapeHtml(OBJETIVO_LABEL[d.objetivo] || d.objetivo || '—');
+        const cal = d.calorias_objetivo ? `${escapeHtml(String(d.calorias_objetivo))} kcal` : '—';
         const rev = d.requiere_revision
-          ? `<span style="color:var(--yellow);font-size:12px">⚠️ ${(d.motivo_revision || '').substring(0, 40)}</span>`
+          ? `<span style="color:var(--yellow);font-size:12px">⚠️ ${escapeHtml((d.motivo_revision || '').substring(0, 40))}</span>`
           : '<span style="color:var(--muted);font-size:12px">—</span>';
         return `<tr>
           <td style="font-weight:500">${nombre}</td>
@@ -3709,7 +3647,7 @@ ${trimmed}`;
           <td>${rev}</td>
           <td style="font-size:12px;color:var(--muted)">${fecha}</td>
           <td style="text-align:center">
-            <button class="btn btn-secondary" onclick="openDietaModal('${d.id}')"
+            <button class="btn btn-secondary" onclick="openDietaModal('${escapeHtml(d.id)}')"
               style="padding:6px 12px;font-size:12px">👁 Ver / Editar</button>
           </td>
         </tr>`;
@@ -3728,12 +3666,12 @@ ${trimmed}`;
 
       // Cliente info
       document.getElementById('dm-cliente').innerHTML = [
-        ['Nombre', nombre], ['Email', email],
-        ['Objetivo', OBJETIVO_LABEL[dieta.objetivo] || dieta.objetivo || '—'],
+        ['Nombre', escapeHtml(nombre)], ['Email', escapeHtml(email)],
+        ['Objetivo', escapeHtml(OBJETIVO_LABEL[dieta.objetivo] || dieta.objetivo || '—')],
         ['Estado', estadoBadgeHtml(dieta.estado)],
-        ['Desviación kcal', dieta.desviacion_porcentaje != null ? dieta.desviacion_porcentaje + '%' : '—'],
-        ['Modelo IA', dieta.modelo_ia || '—'],
-      ].map(([k, v]) => `<div><span style="color:var(--muted);font-size:12px">${k}</span><div style="font-weight:500;margin-top:2px">${v}</div></div>`).join('');
+        ['Desviación kcal', dieta.desviacion_porcentaje != null ? escapeHtml(dieta.desviacion_porcentaje + '%') : '—'],
+        ['Modelo IA', escapeHtml(dieta.modelo_ia || '—')],
+      ].map(([k, v]) => `<div><span style="color:var(--muted);font-size:12px">${escapeHtml(k)}</span><div style="font-weight:500;margin-top:2px">${v}</div></div>`).join('');
 
       // Macros
       document.getElementById('dm-macros').innerHTML = [
