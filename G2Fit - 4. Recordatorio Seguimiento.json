@@ -565,6 +565,10 @@
             {
               "name": "line_items[0][price]",
               "value": "price_1TBdNuBPbXg9MQvY0LzTX9YM"
+            },
+            {
+              "name": "expires_at",
+              "value": "={{ Math.floor(Date.now() / 1000) + 3 * 24 * 60 * 60 }}"
             }
           ]
         },

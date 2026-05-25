@@ -185,6 +185,10 @@
             {
               "name": "allow_promotion_codes",
               "value": "true"
+            },
+            {
+              "name": "expires_at",
+              "value": "={{ Math.floor(Date.now() / 1000) + 3 * 24 * 60 * 60 }}"
             }
           ]
         },
