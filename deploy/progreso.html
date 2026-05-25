@@ -98,6 +98,9 @@
         const clientes = await r1.json();
         if (!clientes.length) { showError('Enlace no encontrado o expirado'); return; }
         const c = clientes[0];
+        if (!c.link_token_expires_at || new Date(c.link_token_expires_at) < new Date()) {
+          showError('Este enlace ha caducado. Pide a tu nutricionista que te envíe uno nuevo.'); return;
+        }
         const r2 = await fetch(`${SUPABASE_URL}/rest/v1/seguimiento_clientes?cliente_id=eq.${c.id}&order=fecha.asc`, { headers: h });
         const seguimiento = r2.ok ? await r2.json() : [];
         const variant = parseInt(new URLSearchParams(window.location.search).get('v') || '0');

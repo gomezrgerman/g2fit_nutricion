@@ -3082,18 +3082,18 @@
     async function compartirProgreso() {
       if (!currentCliente) return;
       let token = currentCliente.link_token;
-      if (!token) {
-        token = crypto.randomUUID();
-        try {
-          await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${currentCliente.id}`,{
-            method:'PATCH', headers:{...getHeaders(),'Prefer':'return=minimal'},
-            body: JSON.stringify({ link_token: token })
-          });
-          currentCliente.link_token = token;
-          const idx = allClientes.findIndex(c=>c.id===currentCliente.id);
-          if (idx !== -1) allClientes[idx].link_token = token;
-        } catch(e) { showToast('Error generando enlace: '+e.message,'error'); return; }
-      }
+      if (!token) token = crypto.randomUUID();
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${currentCliente.id}`, {
+          method: 'PATCH', headers: { ...getHeaders(), 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ link_token: token, link_token_expires_at: expiresAt })
+        });
+        currentCliente.link_token = token;
+        currentCliente.link_token_expires_at = expiresAt;
+        const idx = allClientes.findIndex(c => c.id === currentCliente.id);
+        if (idx !== -1) { allClientes[idx].link_token = token; allClientes[idx].link_token_expires_at = expiresAt; }
+      } catch(e) { showToast('Error generando enlace: ' + e.message, 'error'); return; }
       const baseUrl = `${window.location.origin}/progreso?c=${token}`;
 
       const primera = seguimientoData.length ? seguimientoData[0] : null;
