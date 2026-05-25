@@ -2094,6 +2094,11 @@
         <!-- Panel de instrucciones para regeneración -->
         <div id="dm-panel-regen" style="display:none;margin-top:14px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:10px;padding:14px">
           <div style="font-size:13px;font-weight:600;color:#818cf8;margin-bottom:10px">¿Qué hay que cambiar en esta dieta?</div>
+          <!-- Bloque de restricciones: se rellena en mostrarPanelRegeneracion() -->
+          <div id="dm-regen-restricciones" style="display:none;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.28);border-radius:8px;padding:10px 12px;margin-bottom:12px">
+            <div style="font-size:10px;color:#f59e0b;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:7px">Revisar antes de generar</div>
+            <div id="dm-regen-restricciones-body" style="font-size:12px;line-height:1.6;color:#cbd5e1"></div>
+          </div>
           <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px" id="dm-regen-chips">
             <label style="cursor:pointer"><input type="checkbox" value="Demasiado repetitiva, necesita más variedad de platos" style="margin-right:4px"><span style="font-size:12px;background:rgba(99,102,241,0.15);padding:4px 10px;border-radius:20px;color:#818cf8">Muy repetitiva</span></label>
             <label style="cursor:pointer"><input type="checkbox" value="Las cantidades de proteína son insuficientes, aumentarlas" style="margin-right:4px"><span style="font-size:12px;background:rgba(99,102,241,0.15);padding:4px 10px;border-radius:20px;color:#818cf8">Pocas proteínas</span></label>
@@ -4251,6 +4256,28 @@
     // ═══ REGENERAR DIETA VÍA WEBHOOK N8N ═══
     function mostrarPanelRegeneracion() {
       if (!currentDieta) return;
+
+      // Recordatorio de restricciones del cliente
+      const c = currentCliente;
+      const lineas = [];
+      if (c?.alimentos_a_evitar) {
+        lineas.push(`<div><span style="color:#94a3b8">Alimentos a evitar: </span>${escapeHtml(c.alimentos_a_evitar)}</div>`);
+      }
+      if (c?.restricciones) {
+        const val = Array.isArray(c.restricciones) ? c.restricciones.join(', ') : String(c.restricciones);
+        if (val && val !== '—') lineas.push(`<div><span style="color:#94a3b8">Restricciones dietéticas: </span>${escapeHtml(val)}</div>`);
+      }
+      if (c?.datos_interes) {
+        lineas.push(`<div><span style="color:#94a3b8">Datos de interés: </span>${escapeHtml(c.datos_interes)}</div>`);
+      }
+      const bloqueEl = document.getElementById('dm-regen-restricciones');
+      if (lineas.length > 0) {
+        document.getElementById('dm-regen-restricciones-body').innerHTML = lineas.join('');
+        bloqueEl.style.display = 'block';
+      } else {
+        bloqueEl.style.display = 'none';
+      }
+
       document.getElementById('dm-panel-regen').style.display = 'block';
       document.getElementById('dm-btn-regenerar').style.display = 'none';
       document.getElementById('dm-regen-notas').value = '';
