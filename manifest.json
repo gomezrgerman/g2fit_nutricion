@@ -1,0 +1,25 @@
+{
+  "name": "G2FIT Nutrición — Gestor",
+  "short_name": "G2FIT",
+  "description": "Panel de gestión de clientes y dietas G2FIT Nutrición",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0F172A",
+  "theme_color": "#FB5FAB",
+  "icons": [
+    {
+      "src": "/img/unnamed.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/img/unnamed.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "health", "fitness"]
+}

@@ -6,6 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>G2FIT Nutrición — Panel de Gestión</title>
   <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#FB5FAB">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="G2FIT">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/img/unnamed.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet">
@@ -4194,16 +4200,26 @@
           await guardarPlanEditado();
         }
 
-      // 1. Disparar webhook n8n con autenticación por cabecera
-      await dispararWebhook(`${N8N_URL}/webhook/g2fit-send?dieta_id=${currentDieta.id}`);
+        // 1. Guardar notas en Supabase ANTES del webhook para que n8n lea la versión correcta
+        const resPatch = await fetch(`${SUPABASE_URL}/rest/v1/dietas_generadas?id=eq.${currentDieta.id}`, {
+          method: 'PATCH',
+          headers: { ...getHeaders(), 'Prefer': 'return=minimal' },
+          body: JSON.stringify({
+            notas_nutricionista: notas,
+            updated_at: new Date().toISOString()
+          })
+        });
+        if (!resPatch.ok) throw new Error(await resPatch.text());
 
-        // 2. Actualizar Supabase directamente (esto SÍ funciona sin CORS)
+        // 2. Disparar webhook n8n — lee plan_completo y notas_nutricionista ya actualizados
+        await dispararWebhook(`${N8N_URL}/webhook/g2fit-send?dieta_id=${currentDieta.id}`);
+
+        // 3. Marcar como enviada
         const res = await fetch(`${SUPABASE_URL}/rest/v1/dietas_generadas?id=eq.${currentDieta.id}`, {
           method: 'PATCH',
           headers: { ...getHeaders(), 'Prefer': 'return=minimal' },
           body: JSON.stringify({
             estado: 'enviada',
-            notas_nutricionista: notas,
             fecha_envio: new Date().toISOString(),
             updated_at: new Date().toISOString()
           })
