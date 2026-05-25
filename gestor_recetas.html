@@ -2068,6 +2068,11 @@
             <button class="btn btn-secondary" id="dm-btn-editar" onclick="toggleEditMode()"
               style="padding:5px 12px;font-size:12px">✏️ Modificar</button>
           </div>
+          <!-- Bloque restricciones en modo edición: se rellena en toggleEditMode() -->
+          <div id="dm-edit-restricciones" style="display:none;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.28);border-radius:8px;padding:10px 12px;margin-bottom:10px">
+            <div style="font-size:10px;color:#f59e0b;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:7px">Revisar antes de modificar</div>
+            <div id="dm-edit-restricciones-body" style="font-size:12px;line-height:1.6;color:#cbd5e1"></div>
+          </div>
           <div id="dm-plan-content" style="font-size:14px"></div>
         </div>
         <!-- Notas nutricionista -->
@@ -3868,10 +3873,30 @@
       container.innerHTML = html;
     }
 
+    function construirHtmlRestricciones(c) {
+      if (!c) return '';
+      const lineas = [];
+      if (c.alimentos_a_evitar) lineas.push(`<div><span style="color:#94a3b8">Alimentos a evitar: </span>${escapeHtml(c.alimentos_a_evitar)}</div>`);
+      if (c.restricciones) {
+        const val = Array.isArray(c.restricciones) ? c.restricciones.join(', ') : String(c.restricciones);
+        if (val && val !== '—') lineas.push(`<div><span style="color:#94a3b8">Restricciones dietéticas: </span>${escapeHtml(val)}</div>`);
+      }
+      if (c.datos_interes) lineas.push(`<div><span style="color:#94a3b8">Datos de interés: </span>${escapeHtml(c.datos_interes)}</div>`);
+      return lineas.join('');
+    }
+
     function toggleEditMode() {
       if (!currentDieta) return;
       editMode = !editMode;
       document.getElementById('dm-btn-editar').textContent = editMode ? '👁 Ver' : '✏️ Modificar';
+      const html = editMode ? construirHtmlRestricciones(currentCliente) : '';
+      const bloqueEl = document.getElementById('dm-edit-restricciones');
+      if (editMode && html) {
+        document.getElementById('dm-edit-restricciones-body').innerHTML = html;
+        bloqueEl.style.display = 'block';
+      } else {
+        bloqueEl.style.display = 'none';
+      }
       renderPlanCompleto(currentDieta.plan_completo, editMode);
     }
 
@@ -4257,22 +4282,10 @@
     function mostrarPanelRegeneracion() {
       if (!currentDieta) return;
 
-      // Recordatorio de restricciones del cliente
-      const c = currentCliente;
-      const lineas = [];
-      if (c?.alimentos_a_evitar) {
-        lineas.push(`<div><span style="color:#94a3b8">Alimentos a evitar: </span>${escapeHtml(c.alimentos_a_evitar)}</div>`);
-      }
-      if (c?.restricciones) {
-        const val = Array.isArray(c.restricciones) ? c.restricciones.join(', ') : String(c.restricciones);
-        if (val && val !== '—') lineas.push(`<div><span style="color:#94a3b8">Restricciones dietéticas: </span>${escapeHtml(val)}</div>`);
-      }
-      if (c?.datos_interes) {
-        lineas.push(`<div><span style="color:#94a3b8">Datos de interés: </span>${escapeHtml(c.datos_interes)}</div>`);
-      }
+      const html = construirHtmlRestricciones(currentCliente);
       const bloqueEl = document.getElementById('dm-regen-restricciones');
-      if (lineas.length > 0) {
-        document.getElementById('dm-regen-restricciones-body').innerHTML = lineas.join('');
+      if (html) {
+        document.getElementById('dm-regen-restricciones-body').innerHTML = html;
         bloqueEl.style.display = 'block';
       } else {
         bloqueEl.style.display = 'none';
