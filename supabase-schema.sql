@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS public.clientes (
   imc                 DECIMAL(4,2),
   id_solicitud        TEXT UNIQUE,
   link_token          TEXT UNIQUE,
+  link_token_expires_at TIMESTAMPTZ,
   created_at          TIMESTAMPTZ DEFAULT NOW(),
   updated_at          TIMESTAMPTZ DEFAULT NOW()
 );
